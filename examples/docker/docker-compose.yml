@@ -1,0 +1,5 @@
+services:
+  sunwell-server:
+    build: .
+    ports:
+      - "2222:22"
