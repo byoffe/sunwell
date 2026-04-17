@@ -839,3 +839,204 @@ Next: run /sunwell:improve to propose the next change, or
 - Termination conditions: threshold check and three-consecutive-iterations check (Loop, Increment 6)
 - Loop orchestration that chains Experiment automatically after Improve approval
 - async-profiler focuses
+
+---
+
+## Increment 6 — Loop
+
+### Scope
+
+Addresses these requirements acceptance criteria:
+
+- All **Loop** criteria
+
+### Approach
+
+The loop is a state machine over `experiments.json`. It orchestrates all prior
+stages in sequence, delegates to each sub-skill's playbook inline (by reading
+its SKILL.md and following it), and pauses at exactly one developer gate: the
+Improve proposal.
+
+The baseline phase runs once. Subsequent iterations are Improve → Experiment
+pairs. After each experiment, the loop checks termination conditions. If
+conditions are not met, it loops back to Improve, reading the most recent
+`analysis.md` (from the experiment run) as the starting point for the next
+proposal.
+
+**The experiment run already contains a full analyze stage** (Increment 5
+design). This means each experiment entry has its own `analysis.md`. The loop
+never re-runs a baseline profile mid-iteration — it just uses the latest
+analysis as input for the next Improve.
+
+### Key Decisions
+
+| Decision | Choice | Rationale |
+|---|---|---|
+| Stage execution model | Loop reads sub-skill SKILL.md files and follows them inline | DRY; sub-skills stay authoritative; loop is pure orchestration, not a copy of their logic |
+| Developer gate | Inherit Improve's Phase 1 STOP instruction | Improve already defines the gate; loop just follows the playbook; no separate gate mechanism |
+| On reject | Stop loop; preserve state | No automatic alternative — rejection means the developer wants to take over; they can re-invoke `/sunwell:loop` or `/sunwell:improve` manually |
+| Primary termination metric | `allocation-rate-mb-s` change-pct (primary); `throughput-ops-s` change-pct (secondary) | Allocation rate is always populated after Increment 5; throughput may be null for older baselines |
+| Threshold: success condition | ANY benchmark improves by ≥ threshold | A single hot benchmark improving is a win; AND semantics would make it too hard to stop |
+| Threshold: stall condition | ALL benchmarks fail to improve for N consecutive iterations | Stall requires consensus — if one benchmark is still moving, the loop may still be productive |
+| Termination config location | `loop:` block in `sunwell.yml`; defaults if absent | Consistent with `profile.overrides` pattern; app-specific thresholds without skill changes |
+| Loop iteration after experiment | Go back to Improve, reading the experiment run's analysis.md | Experiment already analyzed; no new baseline needed; analysis is always the most recent |
+| Resumability | Detect state from last `experiments.json` entry | experiments.json is the ground truth; all fields needed for state detection already exist |
+| Iteration reporting | `[ITERATION N] [STAGE M] <name>` | Clear progress without verbosity; iteration counter helps developer track convergence |
+
+### Termination Thresholds in `sunwell.yml`
+
+```yaml
+# Optional — defaults apply if absent
+loop:
+  improvement-threshold-pct: 10   # stop when any benchmark improves this much
+  stall-iterations: 3             # stop after N consecutive no-improvement iterations
+```
+
+"No improvement" for stall detection: `|change-pct| < 2%` for all benchmarks
+in an experiment entry (i.e., effectively flat). This is not configurable —
+sub-threshold noise should not halt the loop.
+
+### Resumability State Machine
+
+The loop reads `experiments.json` at startup and inspects the last entry to
+determine where to enter:
+
+| Last entry state | Resume point |
+|---|---|
+| No file, or empty array | `BASELINE` — start fresh |
+| `analysis-path: null` | `ANALYZE` — collect succeeded; analyze interrupted |
+| `analysis-path` set, `improvement-status: null` | `IMPROVE_PROPOSE` — baseline complete |
+| `improvement-status: "proposed"` | `IMPROVE_PROPOSE` — re-present existing proposal |
+| `improvement-status: "approved"` | `IMPROVE_IMPLEMENT` — resume Phase 2 |
+| `improvement-status: "implemented"`, `delta: null` | `EXPERIMENT` — implement done; experiment not started |
+| `delta` set | Check termination; if continue → `IMPROVE_PROPOSE` (new iteration) |
+
+If the last entry has `parent-run-id` set but no `delta`, that's the EXPERIMENT
+state — a previous experiment run that didn't complete. Resume from Experiment.
+
+### Orchestration Flow
+
+**Setup**
+
+1. Parse `--config <app-path>`, `--target`, `--focus` from `$ARGUMENTS`.
+2. Read `{app-path}/sunwell.yml`. Resolve target (arg → `default-target` →
+   error) and focus (arg → `default-focus` → `baseline`).
+3. Read termination config: `loop.improvement-threshold-pct` (default: 10),
+   `loop.stall-iterations` (default: 3).
+4. Read `results/experiments.json` (if absent → empty; state = `BASELINE`).
+5. Determine initial state from last entry (see state machine above).
+6. Report:
+   ```
+   Sunwell Loop starting — {target} / {focus}
+   State: {state} | Iteration: {N}
+   ```
+
+**`BASELINE` state**
+
+Follow the sub-skill playbooks in sequence:
+
+- `[ITERATION 1] [STAGE 1] Deploy` — read and follow `.claude/skills/deploy/SKILL.md`
+- `[ITERATION 1] [STAGE 2] Profile + Collect` — read and follow `.claude/skills/profile/SKILL.md`
+- `[ITERATION 1] [STAGE 3] Analyze` — read and follow `.claude/skills/analyze/SKILL.md`
+
+On success → advance to `IMPROVE_PROPOSE`.
+
+**`ANALYZE` state**
+
+- `[ITERATION N] [STAGE 3] Analyze` — follow analyze skill; update experiments.json
+→ advance to `IMPROVE_PROPOSE`
+
+**`IMPROVE_PROPOSE` state**
+
+- `[ITERATION N] [STAGE 4] Improve — proposing`
+- Follow `.claude/skills/improve/SKILL.md` Phase 1 fully (read analysis, write
+  proposal, log in experiments.json, present to developer).
+- **STOP.** Wait for developer response.
+  - On `approve` (or `approve --focus <override>`) → advance to `IMPROVE_IMPLEMENT`
+  - On `reject` → update experiments.json (`improvement-status: "rejected"`);
+    report: "Loop stopped. Run `/sunwell:loop` to propose an alternative, or
+    `/sunwell:improve` manually."; **stop**
+
+**`IMPROVE_IMPLEMENT` state**
+
+- `[ITERATION N] [STAGE 4] Improve — implementing`
+- Follow `.claude/skills/improve/SKILL.md` Phase 2 (apply diff, update
+  experiments.json with `files-changed` and `improvement-status: "implemented"`).
+→ advance to `EXPERIMENT`
+
+**`EXPERIMENT` state**
+
+- `[ITERATION N] [STAGE 5] Experiment`
+- Follow `.claude/skills/experiment/SKILL.md` fully (deploy → profile →
+  collect → analyze → delta → update experiments.json).
+→ run termination check
+
+**Termination Check**
+
+After each experiment completes:
+
+1. Read the `delta` from the new entry.
+2. **Success check:** for each benchmark, if either `allocation-rate-mb-s.change-pct`
+   or `throughput-ops-s.change-pct` is non-null and its absolute value ≥
+   `improvement-threshold-pct` → SUCCESS.
+3. **Stall check:** look at the last `stall-iterations` entries that have `delta`
+   set. If ALL of them have ALL benchmark metrics with `|change-pct| < 2%` (or
+   null) → STALL.
+4. If neither → advance to `IMPROVE_PROPOSE` with iteration counter incremented.
+
+**Final Report**
+
+```
+Sunwell Loop Complete
+─────────────────────────────────────────────
+Result:     {SUCCESS | STALL | STOPPED}
+Iterations: {N}
+Runs:       {run-id-1}, {run-id-2}, ...
+
+Cumulative delta (vs. {first-baseline-run-id}):
+  {BenchmarkName}
+    Allocation rate: {first-baseline} → {last-experiment} MB/s  ({total-pct}%)
+    Throughput:      {first-baseline} → {last-experiment} ops/s ({total-pct}%)
+
+Experiment tree: results/experiments.json
+```
+
+For SUCCESS: "Target improvement of {threshold}% reached."
+For STALL: "No improvement detected in last {N} iterations."
+For STOPPED (reject): omit — Improve already reported.
+
+The cumulative delta compares the very first baseline entry to the last
+experiment entry. Compute it by reading the `delta` chain from experiments.json.
+
+### File and Component Changes
+
+| File | Change |
+|---|---|
+| `.claude/skills/loop/SKILL.md` | Rewrite from stub — full orchestration playbook with state machine |
+| `examples/toy-app/sunwell.yml` | Add optional `loop:` block (commented out, documented as example) |
+| `spec/requirements.md` | Expand Loop acceptance criteria (done in this increment) |
+
+### Edge Cases and Failure Modes
+
+- experiments.json malformed → stop with parse error; do not overwrite
+- Deploy fails in baseline → stop; report; no experiments.json entry written
+- Deploy fails in Experiment → stop; improvement remains in working tree;
+  developer resolves; on re-invoke, loop resumes at EXPERIMENT state
+- Analyze fails (no JFR files) → stop; profile entry in experiments.json remains
+  with `analysis-path: null`; on re-invoke, loop resumes at ANALYZE
+- `improvement-status: "rejected"` on last entry → report "last proposal was
+  rejected"; ask whether to regenerate or stop; default: regenerate a new proposal
+  targeting the same analysis
+- Loop invoked with no `experiments.json` but `--focus <non-baseline>` → warn
+  "first run should use baseline focus"; continue with specified focus (developer override)
+- Stall check with fewer than `stall-iterations` experiment entries → check
+  available entries; report "only N of {stall-iterations} iterations available;
+  stall check: {pass|fail}"
+
+### Deferred
+
+- async-profiler focuses (`cpu`, `memory`, `lock`)
+- Cumulative delta across more than one baseline (the loop uses a single
+  baseline per invocation; multi-session delta tracking is future work)
+- Automatic regression revert on negative delta (deferred — developer should
+  decide whether a regression is acceptable)

@@ -88,10 +88,10 @@
 
 ## Increment 4 — Improve
 
-- [ ] 1. Update `.claude/skills/profile/SKILL.md` step 6 (experiments.json entry):
+- [x] 1. Update `.claude/skills/profile/SKILL.md` step 6 (experiments.json entry):
          add `"proposal-path": null` and `"improvement-status": null` to the JSON
          template written at collect time
-- [ ] 2. Rewrite `.claude/skills/improve/SKILL.md` — full two-phase playbook:
+- [x] 2. Rewrite `.claude/skills/improve/SKILL.md` — full two-phase playbook:
          - Phase 1: parse args; read experiments.json for target run; check
            `improvement-status` (stop if already `"implemented"`); read
            `analysis.md`; read source files cited in the hypothesis; formulate
@@ -104,21 +104,21 @@
            update `files-changed`, `improvement-status: "implemented"`, and
            optionally `suggested-next-focus` if `--focus` override given; report
          - Phase 2 (on `reject`): update `improvement-status: "rejected"`; report
-- [ ] 3. Run `/sunwell:improve --config examples/toy-app` end-to-end against the
+- [x] 3. Run `/sunwell:improve --config examples/toy-app` end-to-end against the
          `20260417-103152` run: verify `proposal.md` is written before any source
          is modified, experiments.json shows `"improvement-status": "proposed"`,
          then approve and verify the change is applied and `files-changed` is
          populated
-- [ ] 4. `git status` — confirm no untracked files
+- [x] 4. `git status` — confirm no untracked files
 
 ## Increment 5 — Experiment
 
-- [ ] 1. Update `profile-jfr.sh`: pipe JMH stdout through
+- [x] 1. Update `profile-jfr.sh`: pipe JMH stdout through
          `tee $REMOTE_DIR/jmh-output.txt` so throughput results are captured
          alongside JFR recordings and collected home automatically
-- [ ] 2. Update `.claude/skills/profile/SKILL.md` step 6 (experiments.json
+- [x] 2. Update `.claude/skills/profile/SKILL.md` step 6 (experiments.json
          entry): add `"parent-run-id": null` to the JSON template
-- [ ] 3. Rewrite `.claude/skills/experiment/SKILL.md` — full orchestration
+- [x] 3. Rewrite `.claude/skills/experiment/SKILL.md` — full orchestration
          playbook:
          - Read experiments.json; find most recent `improvement-status:
            "implemented"` entry; identify baseline (most recent prior entry
@@ -131,11 +131,52 @@
            allocation rate; compute delta vs. baseline for each benchmark
          - Write `delta` object to new entry in experiments.json
          - Report delta table with throughput and allocation-rate changes
-- [ ] 4. Run `/sunwell:experiment --config examples/toy-app` end-to-end:
+- [x] 4. Run `/sunwell:experiment --config examples/toy-app` end-to-end:
          verify `jmh-output.txt` lands in `results/<new-run-id>/`, a new
          experiments.json entry is written with `parent-run-id` set,
          `delta` is populated, and the report shows allocation-rate change
          for `CpuHogBenchmark.deduplicateTags`
+- [x] 5. `git status` — confirm no untracked files
+
+## Increment 6 — Loop
+
+- [ ] 1. Mark Increment 4 and 5 tasks `[x]` in `spec/tasks.md` (done)
+- [ ] 2. Add optional `loop:` block (commented out, with defaults documented)
+         to `examples/toy-app/sunwell.yml`
+- [ ] 3. Rewrite `.claude/skills/loop/SKILL.md` — full state-machine orchestration
+         playbook:
+         - **Setup:** parse `--config`, `--target`, `--focus`; read `sunwell.yml`
+           for target + focus + termination config (`loop.improvement-threshold-pct`
+           default 10, `loop.stall-iterations` default 3); read `experiments.json`;
+           detect initial state from last entry per the state machine table
+         - **State machine table:** map each last-entry condition to its resume
+           point (`BASELINE`, `ANALYZE`, `IMPROVE_PROPOSE`, `IMPROVE_IMPLEMENT`,
+           `EXPERIMENT`, or termination check)
+         - **BASELINE:** report `[ITERATION 1] [STAGE 1] Deploy` → follow
+           `.claude/skills/deploy/SKILL.md`; `[STAGE 2] Profile + Collect` →
+           follow `.claude/skills/profile/SKILL.md`; `[STAGE 3] Analyze` →
+           follow `.claude/skills/analyze/SKILL.md`; advance to `IMPROVE_PROPOSE`
+         - **ANALYZE resume:** `[STAGE 3] Analyze` → follow analyze skill; advance
+           to `IMPROVE_PROPOSE`
+         - **IMPROVE_PROPOSE:** `[ITERATION N] [STAGE 4] Improve — proposing` →
+           follow `.claude/skills/improve/SKILL.md` Phase 1 fully; STOP; on
+           `approve` → `IMPROVE_IMPLEMENT`; on `reject` → update
+           `improvement-status: "rejected"`, report, stop loop
+         - **IMPROVE_IMPLEMENT:** `[STAGE 4] Improve — implementing` → follow
+           improve Phase 2; advance to `EXPERIMENT`
+         - **EXPERIMENT:** `[STAGE 5] Experiment` → follow
+           `.claude/skills/experiment/SKILL.md` fully; run termination check
+         - **Termination check:** success = any benchmark `|change-pct| ≥ threshold`
+           in allocation rate or throughput; stall = last `stall-iterations`
+           experiment entries all have all benchmarks `|change-pct| < 2%` or null;
+           if neither → increment iteration counter; advance to `IMPROVE_PROPOSE`
+         - **Final report:** SUCCESS/STALL/STOPPED header; cumulative delta table
+           (first baseline → last experiment for each benchmark); experiment tree path
+- [ ] 4. Test `/sunwell:loop --config examples/toy-app` end-to-end: verify it
+         runs the baseline, enters the Improve gate, accepts `approve`, runs the
+         Experiment stage, performs the termination check, and (if not done)
+         loops back to `IMPROVE_PROPOSE` for iteration 2 with the experiment
+         run's analysis as input
 - [ ] 5. `git status` — confirm no untracked files
 
 ## Notes
