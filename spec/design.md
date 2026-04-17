@@ -591,3 +591,251 @@ On `reject`:
 - Experiment stage (apply change → run full loop → record delta)
 - Loop orchestration that calls Improve automatically after Analyze
 - Proposing multiple alternative changes in one pass
+
+---
+
+## Increment 5 — Experiment
+
+### Scope
+
+Addresses these requirements acceptance criteria:
+
+- All **Experiment** criteria except termination conditions (deferred to Loop)
+
+### Approach
+
+The Experiment skill assumes the Improve skill has already applied a change to
+the working tree. It deploys that change, runs profile + analyze with the
+suggested focus, computes the delta vs. the baseline run, and records
+everything in a new `experiments.json` entry linked to the parent.
+
+Termination conditions ("delta meets threshold" and "three consecutive
+iterations show no improvement") require multi-run state that belongs in the
+Loop skill, which can see the full experiment chain. Experiment is one
+iteration; Loop is the stopping condition. This keeps concerns separate.
+
+**The delta problem:** throughput (ops/s) is the primary JMH metric, but
+`profile-jfr.sh` currently pipes JMH stdout through SSH to the terminal and
+discards it. Without capturing that output, throughput delta is unavailable.
+The fix is one line in `profile-jfr.sh`: `tee $REMOTE_DIR/jmh-output.txt`.
+The existing `collect-ssh.sh` uses `scp -r` on the entire directory, so the
+file arrives home automatically. Going forward every run has
+`results/<run-id>/jmh-output.txt`.
+
+For the current baseline run (`20260417-103152`) the file won't exist —
+throughput delta will be `null` for that comparison. Allocation rate from the
+GC summary files is always available and makes a meaningful proxy.
+
+### Key Decisions
+
+| Decision | Choice | Rationale |
+|---|---|---|
+| Who applies the source change? | Improve skill (already done) | Experiment assumes the working tree is in experiment state; it just deploys and measures |
+| JMH stdout capture | `tee $REMOTE_DIR/jmh-output.txt` in `profile-jfr.sh` | One line; zero new moving parts; collect already copies the directory |
+| Delta computation | Skill reads `jmh-output.txt` directly | JMH summary table is compact (one line per benchmark); no dedicated parsing script needed |
+| Allocation rate delta | From GC summary files written by analyze | Always available; good proxy when throughput history is missing |
+| experiments.json linking | `parent-run-id` field on experiment entries | Identifies the baseline being compared against; enables chain traversal in Loop |
+| `delta` field format | Object with per-benchmark throughput and allocation-rate; `null` where unavailable | Handles the missing-baseline-throughput case gracefully |
+| Termination conditions | Deferred to Loop (Increment 6) | Requires multi-run chain state; Experiment only knows one iteration |
+| focus for experiment run | `suggested-next-focus` from the parent run's experiments.json entry | Analyze already made this judgment; Experiment operationalizes it |
+
+### JMH Output Capture
+
+Change to `profile-jfr.sh` — replace:
+```bash
+java -jar $REMOTE_PATH/$JAR_FILENAME -prof 'jfr:dir=$REMOTE_DIR'
+```
+with:
+```bash
+java -jar $REMOTE_PATH/$JAR_FILENAME -prof "jfr:dir=$REMOTE_DIR" 2>&1 | tee $REMOTE_DIR/jmh-output.txt
+```
+
+JMH writes its result table to stdout. `tee` copies it to both the terminal
+(visible during the run) and `$REMOTE_DIR/jmh-output.txt`. `collect-ssh.sh`
+retrieves the file alongside the JFR recordings with no changes.
+
+### `experiments.json` Schema Changes
+
+One new field on all run entries going forward:
+
+```json
+{
+  ...
+  "parent-run-id": null
+}
+```
+
+For experiment runs (created by the Experiment skill), `parent-run-id` is set
+to the run-id of the baseline being compared against. `delta` is populated
+after analysis completes.
+
+### `delta` Format
+
+```json
+"delta": {
+  "baseline-run-id": "<parent-run-id>",
+  "metrics": [
+    {
+      "benchmark": "CpuHogBenchmark.deduplicateTags",
+      "throughput-ops-s": {
+        "baseline": null,
+        "experiment": 8234.5,
+        "change-pct": null
+      },
+      "allocation-rate-mb-s": {
+        "baseline": 2977.0,
+        "experiment": 45.2,
+        "change-pct": -98.5
+      }
+    }
+  ]
+}
+```
+
+`null` values indicate the metric was not available for that run (e.g.,
+baseline predates JMH stdout capture). `change-pct` is `null` if either value
+is `null`. Allocation rate comes from the GC summary files; throughput from
+`jmh-output.txt`.
+
+### JMH Output Parsing
+
+JMH prints a result table at the end of a run:
+
+```
+Benchmark                                          Mode  Cnt     Score      Error  Units
+dev.sunwell.toy.CpuHogBenchmark.deduplicateTags  thrpt   25  1234.567 ± 45.678  ops/s
+dev.sunwell.toy.MemoryHogBenchmark.buildReport   thrpt   25   567.890 ± 12.345  ops/s
+```
+
+The skill reads `results/<run-id>/jmh-output.txt`, finds lines matching
+`thrpt` and `ops/s`, and extracts the benchmark short name and Score value.
+No dedicated script — the table is compact and the extraction is straightforward.
+
+### Orchestration Flow (Experiment Skill)
+
+**1. Read context**
+
+Parse `--config <app-path>` and optional `run-id` from arguments. Read
+`results/experiments.json`. Find the target run: named run-id, or most recent
+entry where `improvement-status: "implemented"`.
+
+Extract from that entry:
+- `suggested-next-focus` — focus for the experiment profile run
+- The baseline: the most recent entry before this one where `improvement-status`
+  is `null` and `analysis-path` is set (i.e., the analyzed baseline run)
+
+If no suitable run is found, stop with a clear message.
+
+**2. Deploy**
+
+Build and deploy the current working tree (which has the improvement applied):
+
+```!
+bash .claude/skills/deploy/deploy-ssh.sh \
+  {host} {port} {user} {key} {jar} {remote-path}
+```
+
+If deploy fails, stop and report.
+
+**3. Profile**
+
+Generate a new `run-id`. Profile with `suggested-next-focus`:
+
+```!
+bash .claude/skills/profile/profile-jfr.sh \
+  {host} {port} {user} {key} {remote-path} {jar-filename} {run-id}
+```
+
+**4. Collect**
+
+```!
+bash .claude/skills/profile/collect-ssh.sh \
+  {host} {port} {user} {key} /tmp/{run-id} results/{run-id}
+```
+
+**5. Write experiments.json entry**
+
+Append a new entry for this experiment run:
+
+```json
+{
+  "run-id": "<new-run-id>",
+  "timestamp": "<ISO-8601 UTC>",
+  "target": "<target-name>",
+  "focus": "<suggested-next-focus>",
+  "profiler": "jfr",
+  "artifact-path": "results/<new-run-id>/",
+  "analysis-path": null,
+  "hypothesis": null,
+  "suggested-next-focus": null,
+  "files-changed": [],
+  "delta": null,
+  "proposal-path": null,
+  "improvement-status": null,
+  "parent-run-id": "<baseline-run-id>"
+}
+```
+
+**6. Analyze**
+
+Run the full analyze skill playbook inline — same steps as Increment 3.
+Write `results/<new-run-id>/analysis.md` and update the new entry's
+`analysis-path` in `experiments.json`.
+
+**7. Compute delta**
+
+Parse `results/<new-run-id>/jmh-output.txt` for throughput per benchmark.
+
+For each benchmark, read:
+- Baseline allocation rate: from `results/<baseline-run-id>/summaries/<benchmark>/gc.txt`
+  (the "Allocation rate" line)
+- Experiment allocation rate: from `results/<new-run-id>/summaries/<benchmark>/gc.txt`
+- Baseline throughput: from `results/<baseline-run-id>/jmh-output.txt` (null if absent)
+- Experiment throughput: from `results/<new-run-id>/jmh-output.txt`
+
+Compute `change-pct` where both values are non-null.
+
+Build the `delta` object and write it to the experiment entry in
+`experiments.json`.
+
+**8. Report**
+
+```
+Experiment Complete
+─────────────────────────────────────────────
+Run:      <new-run-id>
+Focus:    <focus>
+Parent:   <baseline-run-id>
+Change:   <files-changed from parent>
+
+Delta per benchmark:
+  CpuHogBenchmark.deduplicateTags
+    Throughput:      <baseline> → <experiment> ops/s  (<change-pct>%)
+    Allocation rate: <baseline> → <experiment> MB/s   (<change-pct>%)
+
+Next: run /sunwell:improve to propose the next change, or
+      /sunwell:profile to start a fresh baseline.
+```
+
+### File and Component Changes
+
+| File | Change |
+|---|---|
+| `.claude/skills/profile/profile-jfr.sh` | Pipe JMH stdout through `tee $REMOTE_DIR/jmh-output.txt` |
+| `.claude/skills/profile/SKILL.md` | Add `parent-run-id: null` to the `experiments.json` entry template |
+| `.claude/skills/experiment/SKILL.md` | Rewrite from stub — full orchestration playbook |
+
+### Edge Cases and Failure Modes
+
+- No `improvement-status: "implemented"` entry found → stop: "No implemented improvement found. Run `/sunwell:improve` first."
+- Deploy fails → stop and report; source change remains in working tree
+- Profile fails → stop; partial results not written
+- `jmh-output.txt` absent on baseline run → set throughput baseline to `null`; proceed with allocation-rate delta only
+- GC summary absent for a benchmark → set allocation-rate baseline or experiment to `null` for that benchmark
+- Benchmark present in experiment but not baseline (or vice versa) → include in delta with `null` for the missing side; note in report
+
+### Deferred
+
+- Termination conditions: threshold check and three-consecutive-iterations check (Loop, Increment 6)
+- Loop orchestration that chains Experiment automatically after Improve approval
+- async-profiler focuses

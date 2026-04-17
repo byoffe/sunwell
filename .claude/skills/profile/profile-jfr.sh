@@ -37,7 +37,7 @@ ssh $SSH_OPTS "$USER@$HOST" "
   set -euo pipefail
   mkdir -p $REMOTE_DIR
   cd $REMOTE_PATH
-  java -jar $REMOTE_PATH/$JAR_FILENAME -prof 'jfr:dir=$REMOTE_DIR'
+  java -jar $REMOTE_PATH/$JAR_FILENAME -prof "jfr:dir=$REMOTE_DIR" 2>&1 | tee $REMOTE_DIR/jmh-output.txt
 "
 
 echo ""

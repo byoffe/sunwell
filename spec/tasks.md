@@ -111,6 +111,33 @@
          populated
 - [ ] 4. `git status` — confirm no untracked files
 
+## Increment 5 — Experiment
+
+- [ ] 1. Update `profile-jfr.sh`: pipe JMH stdout through
+         `tee $REMOTE_DIR/jmh-output.txt` so throughput results are captured
+         alongside JFR recordings and collected home automatically
+- [ ] 2. Update `.claude/skills/profile/SKILL.md` step 6 (experiments.json
+         entry): add `"parent-run-id": null` to the JSON template
+- [ ] 3. Rewrite `.claude/skills/experiment/SKILL.md` — full orchestration
+         playbook:
+         - Read experiments.json; find most recent `improvement-status:
+           "implemented"` entry; identify baseline (most recent prior entry
+           with `analysis-path` set)
+         - Deploy current working tree (improvement already applied)
+         - Generate new run-id; profile with `suggested-next-focus`; collect
+         - Write new experiments.json entry with `parent-run-id` set
+         - Run full analyze inline; update `analysis-path` in new entry
+         - Parse `jmh-output.txt` for throughput; read GC summaries for
+           allocation rate; compute delta vs. baseline for each benchmark
+         - Write `delta` object to new entry in experiments.json
+         - Report delta table with throughput and allocation-rate changes
+- [ ] 4. Run `/sunwell:experiment --config examples/toy-app` end-to-end:
+         verify `jmh-output.txt` lands in `results/<new-run-id>/`, a new
+         experiments.json entry is written with `parent-run-id` set,
+         `delta` is populated, and the report shows allocation-rate change
+         for `CpuHogBenchmark.deduplicateTags`
+- [ ] 5. `git status` — confirm no untracked files
+
 ## Notes
 
 - Tasks 1–4 are deploy-side; tasks 5–8 are profile-side. Each group is

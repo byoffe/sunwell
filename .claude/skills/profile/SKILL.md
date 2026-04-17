@@ -107,7 +107,8 @@ Append this entry:
   "files-changed": [],
   "delta": null,
   "proposal-path": null,
-  "improvement-status": null
+  "improvement-status": null,
+  "parent-run-id": null
 }
 ```
 
