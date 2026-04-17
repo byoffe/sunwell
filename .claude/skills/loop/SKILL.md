@@ -1,6 +1,6 @@
 ---
 name: loop
-description: Run the full Sunwell performance engineering loop — build, deploy, profile, collect, analyze, propose improvements, and track experiments. Invoke this to drive an autonomous tuning session. Pass --auto to skip manual review prompts.
+description: Run the full Sunwell performance engineering loop — deploy, profile, collect, analyze, propose improvements, and track experiments. Reads sunwell.yml for app and target config. Invoke this to drive an autonomous tuning session.
 context: fork
 agent: general-purpose
 allowed-tools: "Bash Read Write"
@@ -8,107 +8,104 @@ allowed-tools: "Bash Read Write"
 
 # Sunwell Loop
 
-You are running the Sunwell performance engineering loop. Your job is to drive each
-stage in sequence, maintain the experiment tree, and report clearly after every stage.
+You are running the Sunwell performance engineering loop. Drive each stage in
+sequence, maintain the experiment tree, and report clearly after every stage.
 
 ## Arguments
 
-`$ARGUMENTS` may include:
-- `--auto` — skip user review prompts; apply improvements and run experiments automatically
-- `--target <name>` — deploy target (default: `local-docker`)
+Parse from `$ARGUMENTS`:
+- `--target <name>` — deploy target (default: `default-target` in `sunwell.yml`)
+- `--focus <focus>` — profiling focus (default: `default-focus` in `sunwell.yml`)
+- `--config <path>` — path to `sunwell.yml` (default: `examples/toy-app/sunwell.yml`)
 
-Parse these from `$ARGUMENTS` at the start.
+## Setup
 
-## Experiment Tree
+Read the config file (default `examples/toy-app/sunwell.yml`). Extract target
+and focus using the same resolution order as the individual skills:
+- target: `--target` arg → `default-target` → stop with error
+- focus: `--focus` arg → `default-focus` → `baseline`
 
-The experiment tree lives at `results/experiments.json`. It is gitignored and
-local to this workstation. Read it at the start of every loop run.
-
-If it does not exist, this is a **baseline run** — create the file with an empty
-baseline entry after the profile stage completes.
-
-```json
-{
-  "baseline": null,
-  "experiments": []
-}
-```
+Read `results/experiments.json` if it exists. If it does not exist this is
+a baseline run — note that; the file will be created by the profile stage.
 
 ## Loop Stages
 
-Work through each stage in order. Report `[STAGE N/6] <name> — <status>` before
-and after each one so the user can follow progress.
+Report `[STAGE N/5] <name> — <status>` before and after each stage.
 
 ---
 
 ### Stage 1 — Deploy
 
-Run the deploy script:
+Build the JAR and deploy to target. Read target config from `sunwell.yml`.
 
-```bash
-bash scripts/deploy.sh ${target:-local-docker}
+```!
+mvn package -pl {maven.module} --also-make -q
 ```
 
-If it fails, stop and report the error. Do not proceed to profiling.
+```!
+bash .claude/skills/deploy/deploy-ssh.sh \
+  {host} {port} {user} {key} {jar} {remote-path}
+```
+
+If deploy fails, stop and report. Do not proceed to profiling.
 
 ---
 
-### Stage 2 — Profile
+### Stage 2 — Profile + Collect
 
-**Not yet implemented (Session 3).**
+SSH in, run with profiler attached, collect recording locally.
 
-Report: `[STAGE 2/6] Profile — pending (Session 3)`
+```!
+bash .claude/skills/profile/profile-jfr.sh \
+  {host} {port} {user} {key} {remote-path} {jar-filename} {duration} {run-id}
+```
 
-Stop here for now and summarize what was accomplished.
+```!
+bash .claude/skills/profile/collect-ssh.sh \
+  {host} {port} {user} {key} /tmp/{run-id}.jfr results/{run-id}
+```
 
----
+Write the `experiments.json` entry after collect succeeds.
 
-### Stage 3 — Collect
-
-**Not yet implemented (Session 3).**
-
-Report: `[STAGE 3/6] Collect — pending (Session 3)`
-
----
-
-### Stage 4 — Analyze
-
-**Not yet implemented (Session 4).**
-
-Report: `[STAGE 4/6] Analyze — pending (Session 4)`
+If either script fails, stop and report.
 
 ---
 
-### Stage 5 — Improve
+### Stage 3 — Analyze
 
-**Not yet implemented (Session 4/5).**
+**Not yet implemented.**
 
-Report: `[STAGE 5/6] Improve — pending (Session 4/5)`
+Report: `[STAGE 3/5] Analyze — pending`
 
 ---
 
-### Stage 6 — Experiment
+### Stage 4 — Improve
 
-**Not yet implemented (Session 5).**
+**Not yet implemented.**
 
-Report: `[STAGE 6/6] Experiment — pending (Session 5)`
+Report: `[STAGE 4/5] Improve — pending`
+
+---
+
+### Stage 5 — Experiment
+
+**Not yet implemented.**
+
+Report: `[STAGE 5/5] Experiment — pending`
 
 ---
 
 ## End of Loop
 
-After completing all available stages, write a summary:
-
 ```
 Sunwell Loop Complete
-─────────────────────────────────
-✓ Deploy       — success
-○ Profile      — pending (Session 3)
-○ Collect      — pending (Session 3)
-○ Analyze      — pending (Session 4)
-○ Improve      — pending (Session 4/5)
-○ Experiment   — pending (Session 5)
+─────────────────────────────────────────────
+✓ Deploy       — {target}
+✓ Profile      — {focus} / {profiler} / {run-id}
+○ Analyze      — pending
+○ Improve      — pending
+○ Experiment   — pending
 
-Experiment tree: results/experiments.json
-Next: run /sunwell:loop again after Session 3 is complete.
+Recording: results/{run-id}/recording.jfr
+Experiments: results/experiments.json
 ```

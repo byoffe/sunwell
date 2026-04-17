@@ -1,0 +1,15 @@
+app: toy-app
+maven:
+  module: examples/toy-app
+jar: examples/toy-app/target/toy-app-benchmarks.jar
+default-target: local-docker
+default-focus: baseline
+
+targets:
+  local-docker:
+    transport: ssh
+    host: localhost
+    port: 2222
+    user: sunwell
+    key: examples/docker/sunwell_dev_key
+    remote-path: /home/sunwell

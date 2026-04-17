@@ -34,15 +34,18 @@ concrete implementations. Not before.
         skills/                       <- auto-discovered project skills (temporary home)
           spec/SKILL.md               <- spec workflow (requirements→design→tasks)
           loop/SKILL.md               <- orchestrator: runs the full loop
-          deploy/SKILL.md             <- build + scp + verify
-          profile/SKILL.md            <- SSH + JFR/async-profiler + collect
-          analyze/SKILL.md            <- parse JFR → analysis.md
+          deploy/
+            SKILL.md                  <- reads sunwell.yml, calls deploy-ssh.sh
+            deploy-ssh.sh             <- transport: scp JAR + verify (no config)
+          profile/
+            SKILL.md                  <- resolves focus, calls profile-jfr.sh + collect-ssh.sh
+            profile-jfr.sh            <- transport: SSH + JFR + wait
+            collect-ssh.sh            <- transport: SCP recording home
+          analyze/SKILL.md            <- parse recording → analysis.md
           improve/SKILL.md            <- propose improvements from analysis
           experiment/SKILL.md         <- apply change → loop → record delta
       spec/                           <- active feature spec (one at a time; empty on main)
         .gitkeep
-      scripts/
-        deploy.sh                     <- thin bash: mvn package, scp, ssh verify
       harness/                        <- future home of shared Java code
         pom.xml                       <- module established, nearly empty for now
       examples/
@@ -53,6 +56,7 @@ concrete implementations. Not before.
             CpuHogBenchmark.java
             MemoryHogBenchmark.java
           pom.xml
+          sunwell.yml                 <- app + target config for toy-app
         docker/
           Dockerfile
           docker-compose.yml
@@ -60,7 +64,6 @@ concrete implementations. Not before.
         experiments.json              <- experiment tree (created on first loop run)
       pom.xml                         <- parent POM
       CLAUDE.md                       <- this file (permanent)
-      WORKING.md                      <- current session plan (temporary, will be deleted)
       README.md
 
 Examples live here during early development.
@@ -134,7 +137,8 @@ Users install once; skills update via the plugin manager. Not a current concern.
 - JMH for benchmarking
 - JFR for profiling (initially), async-profiler later
 - Results always gitignored (results/ directory)
-- Scripts are thin — logic lives in skills, not bash
+- Scripts are thin and transport-only — logic lives in skills, not bash
+- Scripts are co-located with their skill (e.g., `deploy/deploy-ssh.sh`), not in a top-level `scripts/` directory
 - Bad implementations in toy-app should be subtle and realistic
 
 ## Git Hygiene

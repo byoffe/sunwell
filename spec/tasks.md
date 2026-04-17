@@ -2,31 +2,31 @@
 
 ## Increment 1 — Configuration + Deploy + Profile + Collect
 
-- [ ] 1. Create `examples/toy-app/sunwell.yml` with app config, `local-docker`
+- [x] 1. Create `examples/toy-app/sunwell.yml` with app config, `local-docker`
          target, and `default-focus: baseline`
-- [ ] 2. `git mv scripts/deploy.sh .claude/skills/deploy/deploy-ssh.sh`
-- [ ] 3. Rewrite `deploy-ssh.sh` to accept all config as positional args
+- [x] 2. `git mv scripts/deploy.sh .claude/skills/deploy/deploy-ssh.sh`
+- [x] 3. Rewrite `deploy-ssh.sh` to accept all config as positional args
          (`<host> <port> <user> <key> <local-jar> <remote-path>`); remove all
          hardcoded values and the target `case` statement
-- [ ] 4. Update `.claude/skills/deploy/SKILL.md` to read `sunwell.yml`, resolve
+- [x] 4. Update `.claude/skills/deploy/SKILL.md` to read `sunwell.yml`, resolve
          the named target, and call `deploy-ssh.sh` with fully-resolved args
-- [ ] 5. Create `.claude/skills/profile/profile-jfr.sh` — SSHes in, runs JAR
+- [x] 5. Create `.claude/skills/profile/profile-jfr.sh` — SSHes in, runs JAR
          with JFR flags, waits for completion; leaves recording at
          `/tmp/<run-id>.jfr` on the remote host; accepts
          `<host> <port> <user> <key> <remote-path> <jar-filename> <duration> <run-id>`
-- [ ] 6. Create `.claude/skills/profile/collect-ssh.sh` — SCPs
+- [x] 6. Create `.claude/skills/profile/collect-ssh.sh` — SCPs
          `/tmp/<run-id>.jfr` from remote to `results/<run-id>/recording.jfr`
          locally; creates `results/<run-id>/` if absent; accepts
          `<host> <port> <user> <key> <remote-file> <local-dir>`
-- [ ] 7. Flesh out `.claude/skills/profile/SKILL.md`: read `sunwell.yml`,
+- [x] 7. Flesh out `.claude/skills/profile/SKILL.md`: read `sunwell.yml`,
          resolve focus (CLI arg → `default-focus` → `baseline`), apply any
          `profile.overrides`, call `profile-jfr.sh` then `collect-ssh.sh`,
          write the `experiments.json` entry with nulls for analyze/improve fields
-- [ ] 8. Update `.claude/skills/loop/SKILL.md` to run deploy → profile in
+- [x] 8. Update `.claude/skills/loop/SKILL.md` to run deploy → profile in
          sequence, reading target and focus from `sunwell.yml`
-- [ ] 9. Update `CLAUDE.md` repo structure: remove `scripts/` entry, add
+- [x] 9. Update `CLAUDE.md` repo structure: remove `scripts/` entry, add
          co-located scripts under each skill directory
-- [ ] 10. Run `git status` — confirm no untracked files; `git add` or
+- [x] 10. Run `git status` — confirm no untracked files; `git add` or
           `.gitignore` anything that floats
 
 ## Notes

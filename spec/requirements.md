@@ -155,6 +155,25 @@ gate. The loop is invariant. What varies is configuration.
 - [ ] Developer gates: approve proposed change + confirm focus for next run
 - [ ] Loop is resumable from `experiments.json` if interrupted
 
+## JDK Compatibility
+
+Current target is JDK 11+. JFR was open-sourced in JDK 11 and requires no
+special flags from JDK 11 onward. The `-XX:+FlightRecorder` flag is unnecessary
+on JDK 11–12 and deprecated on JDK 13+; `profile-jfr.sh` omits it.
+
+Future requirement: `profile-jfr.sh` should detect the JDK version on the
+remote host and tailor JVM flags accordingly:
+
+| JDK | JFR flags |
+|---|---|
+| 8 (Oracle) | `-XX:+UnlockCommercialFeatures -XX:+FlightRecorder -XX:StartFlightRecording=...` |
+| 11–12 | `-XX:StartFlightRecording=...` |
+| 13+ | `-XX:StartFlightRecording=...` (identical; no deprecated flags) |
+
+JDK 8 support requires Oracle JDK (commercial features) and is not a current
+priority. Detection should be non-breaking — fail clearly if the sensed version
+is unsupported rather than passing flags that may be rejected.
+
 ## Out of Scope
 
 - async-profiler delivery and integration (JFR only until the loop is working

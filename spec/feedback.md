@@ -38,4 +38,28 @@ Updated to document the three deployment concerns and the intended end-state
 (transport scripts + perf-target YAML + app config). YAML schema explicitly
 marked as unfinalized, pending perf-target spec.
 
-<!-- Add more feedback below -->
+---
+
+## JFR Recording Overwritten Per JMH Fork (2026-04-17)
+
+Discovered during first live profile run. `profile-jfr.sh` passes
+`-XX:StartFlightRecording=filename=/tmp/<run-id>.jfr` to the JMH coordinator
+JVM. JMH forks a new JVM per benchmark, inheriting those flags. Each fork
+writes to the same filename — the second benchmark's recording overwrites
+the first. Only the last benchmark's JFR data survives.
+
+**Root cause:** JFR flags are passed at the coordinator level, but profiling
+happens in forked JVMs. Multiple forks, one filename.
+
+**Preferred fix:** Use JMH's built-in `-prof jfr` profiler option. JMH manages
+per-fork recording filenames automatically and understands fork lifecycle.
+This is the designed integration point.
+
+**Impact on current results:** The `results/20260417-022041/recording.jfr`
+collected in the first test run contains only `MemoryHogBenchmark` data.
+`CpuHogBenchmark` JFR data was overwritten.
+
+**Action:** Update `profile-jfr.sh` and `profile/SKILL.md` to use
+`-prof jfr` instead of manual `StartFlightRecording` flags. Research
+where JMH deposits per-fork JFR files when using `-prof jfr` and update
+`collect-ssh.sh` to retrieve them.
