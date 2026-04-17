@@ -20,3 +20,8 @@ targets:
 #   hints:
 #     thread: jmh-worker        # keep only events from threads whose name contains this
 #     package: dev.sunwell.toy  # find first stack frame in this package instead of top-of-stack
+
+# Optional — tune loop termination. Defaults apply if this block is absent.
+# loop:
+#   improvement-threshold-pct: 10   # stop (SUCCESS) when any benchmark improves by this much
+#   stall-iterations: 3             # stop (STALL) after N consecutive no-improvement iterations
