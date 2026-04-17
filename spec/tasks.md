@@ -31,18 +31,60 @@
 
 ## Increment 2 — JFR Per-Fork Recording Fix
 
-- [x] 11. SSH into the Docker target and run a minimal JMH benchmark with
-          `-prof jfr` to confirm where JMH writes per-fork JFR files; document
-          the output path in design.md before touching any scripts
-- [x] 12. Update `profile-jfr.sh` to pass `-prof jfr` to JMH instead of
-          `-XX:StartFlightRecording=...`; remove the `<duration>` positional arg
-- [x] 13. Update `collect-ssh.sh` to SCP all `*.jfr` files from the JMH output
-          directory rather than a single `/tmp/<run-id>.jfr`
-- [x] 14. Update `profile/SKILL.md` steps 4 and 5 to reflect the new script
-          interfaces
-- [x] 15. Run a live profile + collect to confirm all per-fork recordings land
-          in `results/<run-id>/`
-- [x] 16. Run `git status` — confirm no untracked files
+- [x] 1. SSH into the Docker target and run a minimal JMH benchmark with
+         `-prof jfr` to confirm where JMH writes per-fork JFR files; document
+         the output path in design.md before touching any scripts
+- [x] 2. Update `profile-jfr.sh` to pass `-prof jfr` to JMH instead of
+         `-XX:StartFlightRecording=...`; remove the `<duration>` positional arg
+- [x] 3. Update `collect-ssh.sh` to SCP all `*.jfr` files from the JMH output
+         directory rather than a single `/tmp/<run-id>.jfr`
+- [x] 4. Update `profile/SKILL.md` steps 4 and 5 to reflect the new script
+         interfaces
+- [x] 5. Run a live profile + collect to confirm all per-fork recordings land
+         in `results/<run-id>/`
+- [x] 6. Run `git status` — confirm no untracked files
+
+## Increment 3 — Analyze
+
+- [ ] 1. Create `.claude/skills/analyze/summarize-cpu.java` — reads
+         `jdk.ExecutionSample` events via `jdk.jfr.consumer.RecordingFile`;
+         groups by top-of-stack method; ranks by sample count with percentage;
+         accepts `<jfr-file> [--thread <pattern>] [--package <pkg>]`; prints
+         ranked hotspot table + total sample count + filter applied
+- [ ] 2. Create `.claude/skills/analyze/summarize-alloc.java` — reads
+         `jdk.ObjectAllocationSample` events; groups by top application frame
+         (skips JDK internal frames until a non-`java`/`jdk`/`sun` frame is
+         found); sums `weight` in bytes; ranks by total weight with percentage;
+         accepts `<jfr-file> [--thread <pattern>] [--package <pkg>]`; prints
+         ranked allocation table + total bytes + filter applied
+- [ ] 3. Create `.claude/skills/analyze/summarize-gc.java` — reads
+         `jdk.GarbageCollection`, `jdk.GCPhasePause`, `jdk.G1HeapSummary`,
+         `jdk.GCHeapSummary`, `jdk.TenuringDistribution`; computes: collection
+         count, avg/max pause duration, GC frequency (collections/sec), avg
+         heap before/after GC, allocation rate (MB/s), promotion rate; prints
+         compact GC summary; no hint args (GC is process-wide)
+- [ ] 4. Smoke-test all three scripts locally against existing recordings in
+         `results/20260417-103152/`; confirm output is compact and correct;
+         fix any parsing issues before writing the skill
+- [ ] 5. Create `.claude/skills/analyze/SKILL.md` — orchestration playbook:
+         read `experiments.json` for run-id + focus; read `sunwell.yml` for
+         `analyze.hints`; glob `results/<run-id>/**/profile.jfr` to discover
+         benchmarks; determine active dimensions from focus table; run scripts
+         per benchmark × active-dimension writing summaries to
+         `results/<run-id>/summaries/<benchmark-short-name>/<dimension>.txt`;
+         spawn one subagent per benchmark to interpret its summaries; reduce
+         subagent findings into `results/<run-id>/analysis.md`; update
+         `experiments.json` with `analysis-path` and `suggested-next-focus`
+- [ ] 6. Add optional `analyze.hints` block (commented out) to
+         `examples/toy-app/sunwell.yml` showing `thread` and `package` fields
+- [ ] 7. Update `CLAUDE.md` repo structure to list the three analyze scripts
+         under `analyze/`
+- [ ] 8. Run `/sunwell:analyze` end-to-end against an existing run-id; verify
+         `results/<run-id>/summaries/` populated, `analysis.md` written in
+         plain language, `experiments.json` updated with `analysis-path` and
+         `suggested-next-focus`
+- [ ] 9. `git status` — confirm no untracked files; `git add` or `.gitignore`
+         anything that floats
 
 ## Notes
 

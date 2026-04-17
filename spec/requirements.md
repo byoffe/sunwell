@@ -105,11 +105,20 @@ gate. The loop is invariant. What varies is configuration.
     overrides:
       gc:
         duration: 240s
+
+  # Optional — narrow analysis to the code you care about:
+  analyze:
+    hints:
+      thread: pricing-worker     # match thread name by prefix/pattern
+      package: com.example.pricing  # restrict stack frames to this package
   ```
 - [x] `examples/toy-app/sunwell.yml` exists and is valid per the schema
 - [x] All skills resolve app and target config from `sunwell.yml`; nothing hardcoded
 - [x] Skills own the focus→profiler/flags/duration defaults table; `sunwell.yml`
       `profile.overrides` block applies on top when present
+- [ ] `sunwell.yml` supports an optional `analyze.hints` block: `thread` (name
+      prefix/pattern) and `package` (restrict stack frames); both optional and
+      independent
 
 ### Deploy
 - [x] `/sunwell:deploy [target]` reads config from `sunwell.yml`, defaults to
@@ -139,6 +148,10 @@ gate. The loop is invariant. What varies is configuration.
 - [ ] Analysis identifies hotspots relevant to focus (CPU, allocation, GC, locks)
 - [ ] Analysis is written in plain language, not raw profiler output
 - [ ] Claude forms a hypothesis and records a suggested next focus
+- [ ] If `analyze.hints` is present in `sunwell.yml`, analysis is filtered to
+      the specified thread pattern and/or package; the report states which hints
+      were applied
+- [ ] Hints apply to all focuses — they narrow interpretation, not recording scope
 
 ### Improve
 - [ ] `/sunwell:improve` proposes one targeted change based on `analysis.md`
