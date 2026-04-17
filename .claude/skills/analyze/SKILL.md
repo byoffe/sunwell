@@ -10,8 +10,11 @@ Reads JFR recordings from a profiling run, reduces them to compact summaries
 via local Java scripts, and produces a plain-language `analysis.md` with a
 hypothesis and suggested next focus.
 
-**Usage:** `/analyze [run-id]`
+**Usage:** `/analyze [--config <app-path>] [run-id]`
 
+- `--config <app-path>` — directory containing `sunwell.yml`; defaults to `.`
+  (current working directory). For the toy-app during development, pass
+  `examples/toy-app`.
 - `run-id` — optional; defaults to the most recent entry in `results/experiments.json`
 
 ---
@@ -20,11 +23,15 @@ hypothesis and suggested next focus.
 
 **1. Read context**
 
+Parse `$ARGUMENTS`:
+- `--config <app-path>` → use that directory; default to `.`
+- remaining first non-flag token → run-id override
+
 Read `results/experiments.json`. Identify the target run: the named `run-id`
 if provided, otherwise the most recent entry (last in the array). Extract:
 - `run-id`, `focus`, `target`
 
-Read `examples/toy-app/sunwell.yml`. Extract `analyze.hints` if present:
+Read `{app-path}/sunwell.yml`. Extract `analyze.hints` if present:
 - `thread` — thread name pattern (substring match)
 - `package` — package prefix for stack frame filtering
 

@@ -16,11 +16,12 @@ sequence, maintain the experiment tree, and report clearly after every stage.
 Parse from `$ARGUMENTS`:
 - `--target <name>` — deploy target (default: `default-target` in `sunwell.yml`)
 - `--focus <focus>` — profiling focus (default: `default-focus` in `sunwell.yml`)
-- `--config <path>` — path to `sunwell.yml` (default: `examples/toy-app/sunwell.yml`)
+- `--config <app-path>` — directory containing `sunwell.yml` (default: `.`)
+  For the toy-app during development, pass `examples/toy-app`.
 
 ## Setup
 
-Read the config file (default `examples/toy-app/sunwell.yml`). Extract target
+Read `{app-path}/sunwell.yml` (default `./sunwell.yml`). Extract target
 and focus using the same resolution order as the individual skills:
 - target: `--target` arg → `default-target` → stop with error
 - focus: `--focus` arg → `default-focus` → `baseline`

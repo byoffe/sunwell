@@ -8,8 +8,11 @@ allowed-tools: "Bash Read"
 
 Builds the app JAR and deploys it to the named target.
 
-**Usage:** `/deploy [target]`
+**Usage:** `/deploy [--config <app-path>] [target]`
 
+- `--config <app-path>` — directory containing `sunwell.yml`; defaults to `.`
+  (current working directory). For the toy-app during development, pass
+  `examples/toy-app`.
 - `target` — optional; overrides `default-target` in `sunwell.yml`
 
 ---
@@ -18,13 +21,17 @@ Builds the app JAR and deploys it to the named target.
 
 **1. Read `sunwell.yml`**
 
-Read `examples/toy-app/sunwell.yml`. Extract:
+Parse `$ARGUMENTS`:
+- `--config <app-path>` → use that directory; default to `.`
+- remaining first non-flag token → target name override
+
+Read `{app-path}/sunwell.yml`. Extract:
 - `maven.module` — Maven module to build
 - `jar` — local path to the built JAR
 - `default-target` — fallback if no target arg given
 - The named target block: `host`, `port`, `user`, `key`, `remote-path`
 
-Target name: use `$ARGUMENTS` if provided, otherwise `default-target`.
+Target name: CLI target arg → `default-target`.
 
 If the named target does not exist in `sunwell.yml`, stop and list available
 target names. Do not guess.

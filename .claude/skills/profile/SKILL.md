@@ -10,8 +10,11 @@ Profiles the app on the named target using the focus-derived profiler config.
 Collect is folded into this skill — the recording lands locally before this
 skill exits.
 
-**Usage:** `/profile [target] [--focus <focus>]`
+**Usage:** `/profile [--config <app-path>] [target] [--focus <focus>]`
 
+- `--config <app-path>` — directory containing `sunwell.yml`; defaults to `.`
+  (current working directory). For the toy-app during development, pass
+  `examples/toy-app`.
 - `target` — optional; overrides `default-target` in `sunwell.yml`
 - `--focus` — optional; overrides `default-focus` in `sunwell.yml`
 
@@ -21,13 +24,18 @@ skill exits.
 
 **1. Read `sunwell.yml`**
 
-Read `examples/toy-app/sunwell.yml`. Extract:
+Parse `$ARGUMENTS`:
+- `--config <app-path>` → use that directory; default to `.`
+- `--focus <focus>` → focus override
+- remaining first non-flag token → target name override
+
+Read `{app-path}/sunwell.yml`. Extract:
 - `jar` — path to the JAR filename (basename only needed for remote)
 - `default-target`, `default-focus`
 - Named target block: `host`, `port`, `user`, `key`, `remote-path`
 
-Resolve target name: `$ARGUMENTS` target arg → `default-target`.
-Resolve focus: `$ARGUMENTS` `--focus` → `default-focus` → `baseline`.
+Resolve target: CLI target arg → `default-target`.
+Resolve focus: `--focus` arg → `default-focus` → `baseline`.
 
 If the target does not exist in `sunwell.yml`, stop and list available targets.
 If the focus is not a recognized value, stop and list valid focus values.
