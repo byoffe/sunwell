@@ -41,7 +41,11 @@ concrete implementations. Not before.
             SKILL.md                  <- resolves focus, calls profile-jfr.sh + collect-ssh.sh
             profile-jfr.sh            <- transport: SSH + JFR + wait
             collect-ssh.sh            <- transport: SCP recording home
-          analyze/SKILL.md            <- parse recording → analysis.md
+          analyze/
+            SKILL.md                  <- orchestrates scripts + subagents → analysis.md
+            summarize-cpu.java        <- ExecutionSample → ranked hotspot table
+            summarize-alloc.java      <- ObjectAllocationSample → ranked allocation table
+            summarize-gc.java         <- GC events → pause stats, heap, allocation rate
           improve/SKILL.md            <- propose improvements from analysis
           experiment/SKILL.md         <- apply change → loop → record delta
       spec/                           <- active feature spec (one at a time; empty on main)

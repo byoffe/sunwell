@@ -13,3 +13,10 @@ targets:
     user: sunwell
     key: examples/docker/sunwell_dev_key
     remote-path: /home/sunwell
+
+# Optional — narrow analysis to the code you care about.
+# Both fields are independent; omit either or both.
+# analyze:
+#   hints:
+#     thread: jmh-worker        # keep only events from threads whose name contains this
+#     package: dev.sunwell.toy  # find first stack frame in this package instead of top-of-stack
