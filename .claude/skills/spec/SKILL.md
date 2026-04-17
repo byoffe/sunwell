@@ -206,6 +206,22 @@ Wait for direction. Do not pick an answer silently.
 
 ---
 
+## Increment Complete (bookkeeping)
+
+When all tasks for an increment are checked off in `tasks.md`, before committing:
+
+1. **Check off tasks in `tasks.md`** — all tasks for the increment should be `[x]`
+2. **Tick acceptance criteria in `requirements.md`** — for each criterion that is
+   now satisfied, change `[ ]` to `[x]`. Only tick criteria that are actually
+   met by working, committed code — not "close enough" or "mostly done".
+3. **Commit** — spec files and implementation files together in one commit so the
+   state of the spec always matches the state of the code.
+
+This is not optional. requirements.md is the source of truth for what is done.
+If the checkboxes don't reflect reality, the spec is lying.
+
+---
+
 ## Compress (optional maintenance)
 
 When `design.md` or `tasks.md` becomes unwieldy — too large to read as a

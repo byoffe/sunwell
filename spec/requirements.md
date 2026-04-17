@@ -82,7 +82,7 @@ gate. The loop is invariant. What varies is configuration.
 ## Acceptance Criteria
 
 ### Configuration
-- [ ] `sunwell.yml` schema is defined and documented; canonical shape:
+- [x] `sunwell.yml` schema is defined and documented; canonical shape:
   ```yaml
   app: toy-app
   maven:
@@ -106,22 +106,22 @@ gate. The loop is invariant. What varies is configuration.
       gc:
         duration: 240s
   ```
-- [ ] `examples/toy-app/sunwell.yml` exists and is valid per the schema
-- [ ] All skills resolve app and target config from `sunwell.yml`; nothing hardcoded
-- [ ] Skills own the focus→profiler/flags/duration defaults table; `sunwell.yml`
+- [x] `examples/toy-app/sunwell.yml` exists and is valid per the schema
+- [x] All skills resolve app and target config from `sunwell.yml`; nothing hardcoded
+- [x] Skills own the focus→profiler/flags/duration defaults table; `sunwell.yml`
       `profile.overrides` block applies on top when present
 
 ### Deploy
-- [ ] `/sunwell:deploy [target]` reads config from `sunwell.yml`, defaults to
+- [x] `/sunwell:deploy [target]` reads config from `sunwell.yml`, defaults to
       `default-target` when no target is named
-- [ ] Deploy verifies JAR landed and Java is available on the remote host
-- [ ] Deploy script is transport-only — no app or target config embedded in it
+- [x] Deploy verifies JAR landed and Java is available on the remote host
+- [x] Deploy script is transport-only — no app or target config embedded in it
 
 ### Profile
 - [x] `/sunwell:profile [target] [--focus <focus>]` SSHs in, translates focus
       to profiler/flags/duration, runs benchmark JAR, waits for completion
 - [x] Focus defaults to `default-focus` in `sunwell.yml` when not specified
-- [ ] JFR profiling uses JMH's `-prof jfr` option; JMH manages recording
+- [x] JFR profiling uses JMH's `-prof jfr` option; JMH manages recording
       lifecycle per fork (measurement-only, no warmup data), producing one clean
       recording per benchmark in a per-benchmark subdirectory
 - [x] `run-id` is deterministic and human-readable (e.g., `20260416-143012`)
@@ -129,7 +129,7 @@ gate. The loop is invariant. What varies is configuration.
 
 ### Collect
 - [x] Recording is copied back from remote host to local `results/<run-id>/`
-- [ ] All per-benchmark JFR files produced by `-prof jfr` are collected from
+- [x] All per-benchmark JFR files produced by `-prof jfr` are collected from
       the JMH output directory
 - [x] `results/experiments.json` is created on first run; subsequent runs append
 
