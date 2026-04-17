@@ -14,6 +14,18 @@ idea to approved implementation plan, one artifact at a time.
 
 ---
 
+## feedback.md
+
+`spec/feedback.md` is a free-form document for capturing questions, concerns,
+and observations on work in progress — including work already implemented but
+not yet reviewed. It is not a phase artifact; it can exist at any time alongside
+requirements/design/tasks. When the user says "capture this feedback" or
+"note this", append it to `spec/feedback.md`. At compress-and-close, process
+any open items into requirements changes, design revisions, or task additions,
+then delete the file.
+
+---
+
 ## Detect the Current Phase
 
 Check what already exists in `spec/`:

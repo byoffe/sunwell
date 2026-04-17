@@ -1,0 +1,8 @@
+{
+  "name": "sunwell",
+  "version": "0.1.0",
+  "description": "Performance engineering harness — build, deploy, profile, analyze, tune",
+  "author": { "name": "byoffe" },
+  "repository": "https://github.com/byoffe/sunwell",
+  "_skills_note": "Skills temporarily in .claude/skills/ for local dev; move back to ./skills/ when publishing"
+}
