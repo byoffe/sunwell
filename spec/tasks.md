@@ -86,6 +86,31 @@
 - [x] 9. `git status` — confirm no untracked files; `git add` or `.gitignore`
          anything that floats
 
+## Increment 4 — Improve
+
+- [ ] 1. Update `.claude/skills/profile/SKILL.md` step 6 (experiments.json entry):
+         add `"proposal-path": null` and `"improvement-status": null` to the JSON
+         template written at collect time
+- [ ] 2. Rewrite `.claude/skills/improve/SKILL.md` — full two-phase playbook:
+         - Phase 1: parse args; read experiments.json for target run; check
+           `improvement-status` (stop if already `"implemented"`); read
+           `analysis.md`; read source files cited in the hypothesis; formulate
+           one targeted change (one logical concern, minimum viable diff); write
+           `results/<run-id>/proposal.md` with change + rationale + expected
+           effect + suggested focus + unified diff; update experiments.json with
+           `proposal-path` and `improvement-status: "proposed"`; present proposal
+           to developer with approval prompt; **stop**
+         - Phase 2 (on `approve`): update status to `"approved"`; apply diff;
+           update `files-changed`, `improvement-status: "implemented"`, and
+           optionally `suggested-next-focus` if `--focus` override given; report
+         - Phase 2 (on `reject`): update `improvement-status: "rejected"`; report
+- [ ] 3. Run `/sunwell:improve --config examples/toy-app` end-to-end against the
+         `20260417-103152` run: verify `proposal.md` is written before any source
+         is modified, experiments.json shows `"improvement-status": "proposed"`,
+         then approve and verify the change is applied and `files-changed` is
+         populated
+- [ ] 4. `git status` — confirm no untracked files
+
 ## Notes
 
 - Tasks 1–4 are deploy-side; tasks 5–8 are profile-side. Each group is

@@ -434,3 +434,160 @@ No thread/package hint — GC events are process-wide.
 
 - async-profiler focuses (`cpu`, `memory`, `lock`) — scripts accept the same interface but these focuses aren't executable until async-profiler is delivered
 - Improve, Experiment, Loop orchestration
+
+---
+
+## Increment 4 — Improve
+
+### Scope
+
+Addresses these requirements acceptance criteria:
+
+- All **Improve** criteria
+
+### Approach
+
+The Improve skill is a two-phase gate: propose, then implement. Phase 1 reads
+`analysis.md`, selects one targeted change, writes a proposal to
+`results/<run-id>/proposal.md`, logs it in `experiments.json`, and **stops**
+to wait for developer approval. Phase 2 resumes on explicit approval, applies
+the change to source code, and updates `experiments.json` with the files
+touched and final status.
+
+The hard invariant: **no source file is modified before the proposal is logged
+and explicitly approved.** This ensures the experiment tree records intent
+before action, making every run reproducible and auditable.
+
+A "change" is one logical concern — one method, one class, one data structure
+decision. If the analysis identifies multiple problems, the skill picks the
+highest-impact one and defers the rest. The diff should be minimal and
+focused; a reviewer should be able to understand the full change at a glance.
+
+### Key Decisions
+
+| Decision | Choice | Rationale |
+|---|---|---|
+| Proposal format | `proposal.md` file + unified diff embedded in it | Prose provides rationale; diff is precise and machine-readable; file is a durable artifact alongside the recording |
+| Where does the proposal live? | `results/<run-id>/proposal.md` | Keeps prose/diff out of `experiments.json`; consistent with `analysis-path` pattern |
+| `experiments.json` changes | Add `proposal-path` and `improvement-status` fields | Structured fields enable loop resumability; status tracks the proposal lifecycle |
+| `improvement-status` values | `proposed` → `approved` → `implemented` (or `rejected`) | Minimal state machine; enough to resume a loop that was interrupted between phases |
+| Does the Improve skill implement the change? | Yes, after approval | Avoids a separate "apply" step that would require re-reading all the context; the skill already holds the analysis and proposed diff |
+| Approval mechanism | Developer types `approve` (with optional focus redirect) | Natural conversation gate; no ceremony; redirect allows "approve, but use gc instead" |
+| How many changes per proposal? | Exactly one | Keeps the delta measurable; if multiple changes land at once, the experiment records a confounded signal; the experiment loop handles iteration |
+| Choosing which change to propose | Highest-impact finding from analysis.md hypothesis | The analysis already identifies the primary bottleneck; Improve operationalizes that judgment |
+| Scope limit | One logical concern — if the diff would touch more than one concern, split and propose only the highest-impact | Enforces single-variable experiments |
+
+### `proposal.md` Structure
+
+```markdown
+# Proposal: {run-id}
+
+**Based on:** `results/{run-id}/analysis.md`
+
+## Change
+
+One sentence: what is being changed and why.
+
+## Rationale
+
+Two to four sentences referencing specific findings from the analysis.
+Cite method names, line numbers, and metrics. Explain why this change
+addresses the primary bottleneck identified in the hypothesis.
+
+## Expected Effect
+
+What the change is expected to improve (e.g., allocation rate, CPU time),
+and approximately by how much if a reasonable estimate is possible.
+
+## Suggested Next Focus
+
+{focus-name} — one sentence explaining why this focus is the right next step.
+
+## Diff
+
+```diff
+--- a/{file}
++++ b/{file}
+@@ ... @@
+ context
+-removed line
++added line
+ context
+```
+```
+
+### `experiments.json` Schema Changes
+
+Two new fields added to each run entry:
+
+```json
+{
+  ...
+  "proposal-path": "results/<run-id>/proposal.md",
+  "improvement-status": "proposed"
+}
+```
+
+`improvement-status` lifecycle:
+- `null` — no proposal yet (default; set by profile skill)
+- `"proposed"` — `proposal.md` written; awaiting developer approval
+- `"approved"` — developer approved; implementation in progress
+- `"implemented"` — change applied; `files-changed` populated
+- `"rejected"` — developer rejected the proposal; loop can propose an alternative
+
+### Orchestration Flow (Improve Skill)
+
+**Phase 1 — Propose**
+
+1. Parse `--config <app-path>` and optional `run-id` override from arguments.
+2. Read `results/experiments.json`. Identify the target run (named or most recent).
+   If `improvement-status` is `"implemented"`, report "already implemented" and stop.
+3. Read `results/<run-id>/analysis.md`.
+4. Read source files referenced in the analysis hypothesis (the ones containing
+   the identified hotspots). Extract the specific methods/lines cited.
+5. Formulate one targeted change addressing the primary bottleneck. Apply the
+   scope limit: one logical concern, minimum viable diff.
+6. Write `results/<run-id>/proposal.md` with the structure above.
+7. Update `experiments.json`: set `proposal-path` and `improvement-status: "proposed"`.
+8. Present the proposal to the developer. Include:
+   - The analysis hypothesis (one sentence)
+   - The proposed change (from proposal.md)
+   - The suggested next focus
+   - The approval prompt: `"Type 'approve' to implement, or 'approve --focus <focus>' to redirect the next focus. Type 'reject' to skip."`
+9. **Stop.** Do not modify any source file.
+
+**Phase 2 — Implement (on approval)**
+
+10. On `approve` (or `approve --focus <override>`):
+    - Update `experiments.json`: set `improvement-status: "approved"`.
+    - Apply the diff from `proposal.md` to the source file(s).
+    - Update `experiments.json`: set `files-changed` to the list of modified files,
+      `improvement-status: "implemented"`, and (if focus was redirected)
+      `suggested-next-focus` to the override.
+11. Report: files changed, lines modified, suggested next focus for the next run.
+
+On `reject`:
+- Update `experiments.json`: set `improvement-status: "rejected"`.
+- Report: "Proposal rejected. Run `/sunwell:improve` again to generate an alternative."
+
+### File and Component Changes
+
+| File | Change |
+|---|---|
+| `.claude/skills/improve/SKILL.md` | Rewrite from stub — full two-phase orchestration playbook |
+| `.claude/skills/profile/SKILL.md` | Add `proposal-path: null` and `improvement-status: null` to the `experiments.json` entry written at collect time |
+
+### Edge Cases and Failure Modes
+
+- `analysis.md` not found → stop with "Run `/sunwell:analyze` first"
+- `experiments.json` entry missing `analysis-path` → same message
+- `improvement-status: "implemented"` → report "already implemented; run profile to start a new loop iteration"
+- Source file cited in analysis not found → report path and stop; do not guess an alternative
+- Diff application fails (file changed since analysis) → report conflict, preserve `proposal.md`, leave status `"approved"`; developer resolves manually
+- Developer provides `approve --focus <unknown>` → validate against known focus values; list valid values if unknown
+
+### Deferred
+
+- Experiment stage (apply change → run full loop → record delta)
+- Loop orchestration that calls Improve automatically after Analyze
+- Proposing multiple alternative changes in one pass
