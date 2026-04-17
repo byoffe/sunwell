@@ -167,10 +167,21 @@ gate. The loop is invariant. What varies is configuration.
       show no improvement
 
 ### Loop
-- [ ] `/sunwell:loop` runs deploy → profile → collect → analyze → improve →
-      experiment in sequence
-- [ ] Developer gates: approve proposed change + confirm focus for next run
-- [ ] Loop is resumable from `experiments.json` if interrupted
+- [ ] `/sunwell:loop` runs: baseline (deploy → profile → collect → analyze),
+      then iterates (improve → [gate] → experiment) until termination
+- [ ] Developer gate: loop pauses after each Improve proposal; resumes on
+      explicit `approve`; on `reject`, loop stops and preserves state
+- [ ] Termination condition A: any benchmark's delta meets
+      `loop.improvement-threshold-pct` (default 10%) in allocation rate or
+      throughput — loop reports SUCCESS and stops
+- [ ] Termination condition B: the last `loop.stall-iterations` (default 3)
+      consecutive experiment entries all show no improvement across all
+      benchmarks — loop reports STALL and stops
+- [ ] Termination thresholds configurable in `sunwell.yml` under a `loop:`
+      block; defaults apply if the block is absent
+- [ ] Loop detects interrupted state from `experiments.json` and resumes at
+      the correct stage without re-running completed stages
+- [ ] Progress reported per stage: `[ITERATION N] [STAGE M] <name> — <status>`
 
 ## JDK Compatibility
 
