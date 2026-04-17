@@ -105,7 +105,9 @@ Append this entry:
   "hypothesis": null,
   "suggested-next-focus": null,
   "files-changed": [],
-  "delta": null
+  "delta": null,
+  "proposal-path": null,
+  "improvement-status": null
 }
 ```
 
