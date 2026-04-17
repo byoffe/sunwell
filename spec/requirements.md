@@ -121,16 +121,16 @@ gate. The loop is invariant. What varies is configuration.
 - [x] `/sunwell:profile [target] [--focus <focus>]` SSHs in, translates focus
       to profiler/flags/duration, runs benchmark JAR, waits for completion
 - [x] Focus defaults to `default-focus` in `sunwell.yml` when not specified
-- [ ] JFR profiling uses JMH's `-prof jfr` option so each benchmark fork gets
-      its own recording — not a shared `-XX:StartFlightRecording` flag that is
-      overwritten by each fork
+- [ ] JFR profiling uses JMH's `-prof jfr` option; JMH manages recording
+      lifecycle per fork (measurement-only, no warmup data), producing one clean
+      recording per benchmark in a per-benchmark subdirectory
 - [x] `run-id` is deterministic and human-readable (e.g., `20260416-143012`)
 - [x] Focus and resolved profiler are recorded in `experiments.json`
 
 ### Collect
 - [x] Recording is copied back from remote host to local `results/<run-id>/`
-- [ ] All per-fork JFR files produced by `-prof jfr` are collected, not just
-      a single recording
+- [ ] All per-benchmark JFR files produced by `-prof jfr` are collected from
+      the JMH output directory
 - [x] `results/experiments.json` is created on first run; subsequent runs append
 
 ### Analyze

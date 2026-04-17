@@ -183,45 +183,65 @@ Experiment).
 
 ---
 
-## Increment 2 — JFR Per-Fork Recording Fix
+## Increment 2 — JFR Clean Recording via `-prof jfr`
 
 ### Scope
 
 Addresses these requirements acceptance criteria:
-- Profile: "JFR profiling uses JMH's `-prof jfr` option so each benchmark
-  fork gets its own recording"
-- Collect: "All per-fork JFR files produced by `-prof jfr` are collected"
+- Profile: "JFR profiling uses JMH's `-prof jfr` option; JMH manages recording
+  lifecycle per fork (measurement-only, no warmup data), producing one clean
+  recording per benchmark in a per-benchmark subdirectory"
+- Collect: "All per-benchmark JFR files produced by `-prof jfr` are collected
+  from the JMH output directory"
 
 ### Approach
 
 Replace the manual `-XX:StartFlightRecording=...` JVM flag with JMH's built-in
-`-prof jfr` profiler option. JMH manages per-fork recording lifecycle and naming
-automatically. Collect retrieves all JFR files produced rather than a single
-hardcoded filename.
+`-prof jfr` profiler option. Pass `dir=/tmp/<run-id>` so JMH writes recordings
+into the run's directory. Collect retrieves all JFR files from that directory
+rather than a single hardcoded filename.
+
+### Empirical Findings (task 11)
+
+Tested on Docker target (JDK 21, JMH 1.37) with 2 forks. JMH uses `jcmd JFR.start`
+/ `JFR.stop` per fork, scoped to the measurement phase only (warmup runs are not
+recorded). All forks write to the same filename — last fork wins. Each benchmark
+gets its own subdirectory.
+
+With `dir=/tmp/<run-id>` and two benchmarks, output is:
+```
+/tmp/<run-id>/
+  dev.sunwell.toy.CpuHogBenchmark.deduplicateTags-Throughput/profile.jfr
+  dev.sunwell.toy.MemoryHogBenchmark.allocateAndDiscard-Throughput/profile.jfr
+```
+
+Last-fork-wins is acceptable: each recording contains clean measurement data from
+one fork, which is the standard profiling workflow (run benchmark, inspect one
+recording). Getting a separate file per fork adds statistical complexity without
+profiling value.
 
 ### Key Decisions
 
 | Decision | Choice | Rationale |
 |---|---|---|
-| JFR integration point | JMH `-prof jfr` flag | JMH owns fork lifecycle; it knows when each fork starts and stops and names files accordingly |
-| Recording output location | JMH default output dir (to be confirmed by test) | `-prof jfr` writes to a subdirectory in the working dir; exact path confirmed empirically |
-| Collect strategy | SCP all `*.jfr` files from output dir | Per-fork files are named by JMH; glob is safer than predicting filenames |
-| `artifact-path` in experiments.json | Directory path, not single file | Multiple files per run; point to `results/<run-id>/` rather than a single recording |
+| JFR integration point | JMH `-prof jfr` flag | JMH scopes recording to measurement phase only; no warmup data; no manual duration needed |
+| Recording output location | `-prof "jfr:dir=/tmp/<run-id>"` | Explicit dir keeps all recordings under the run-id; avoids collisions across runs |
+| Per-fork file uniqueness | Last fork wins (one file per benchmark) | Confirmed empirically: all forks write to same filename; last-fork clean measurement data is sufficient |
+| Collect strategy | `scp -r` the entire `/tmp/<run-id>/` dir | Captures all benchmark subdirectories; no filename prediction needed |
+| `artifact-path` in experiments.json | Directory path, not single file | Multiple benchmarks → multiple files; point to `results/<run-id>/` |
 
 ### File and Component Changes
 
 | File | Change |
 |---|---|
-| `.claude/skills/profile/profile-jfr.sh` | Replace `-XX:StartFlightRecording=...` with JMH `-prof jfr`; remove `<duration>` arg (JMH controls recording lifecycle); confirm output directory |
-| `.claude/skills/profile/collect-ssh.sh` | Collect all `*.jfr` files from JMH output dir rather than a single `/tmp/<run-id>.jfr` |
-| `.claude/skills/profile/SKILL.md` | Update step 4 (profile) and step 5 (collect) to reflect new approach |
+| `.claude/skills/profile/profile-jfr.sh` | Replace `-XX:StartFlightRecording=...` with `-prof "jfr:dir=/tmp/<run-id>"`; remove `<duration>` positional arg |
+| `.claude/skills/profile/collect-ssh.sh` | Accept remote dir instead of remote file; use `scp -r` to copy entire dir |
+| `.claude/skills/profile/SKILL.md` | Update step 4 (profile) and step 5 (collect) to reflect new script interfaces |
 
 ### Edge Cases and Failure Modes
 
-- JMH `-prof jfr` output directory location must be confirmed by running a test
-  before finalising the collect script — note this as a research task
-- If no `.jfr` files are found after profiling, collect fails with the remote
-  path searched
+- If no `.jfr` files are found after profiling, collect fails with the remote path searched
+- JMH output dir is benchmark-class-qualified; collect does not need to predict subdirectory names — `scp -r` copies all of them
 
 ### Deferred
 

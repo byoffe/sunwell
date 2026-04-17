@@ -1,16 +1,17 @@
 #!/usr/bin/env bash
-# profile-jfr.sh — SSH into target, run JMH benchmark JAR with JFR attached
+# profile-jfr.sh — SSH into target, run JMH benchmark JAR with JFR via -prof jfr
 #
-# Usage: profile-jfr.sh <host> <port> <user> <key> <remote-path> <jar-filename> <duration> <run-id>
+# Usage: profile-jfr.sh <host> <port> <user> <key> <remote-path> <jar-filename> <run-id>
 #
-# Leaves the JFR recording at /tmp/<run-id>.jfr on the remote host.
-# Call collect-ssh.sh afterwards to retrieve it.
+# JMH manages recording lifecycle per fork (measurement-only, no warmup data).
+# Recordings land in /tmp/<run-id>/<benchmark-class>-<mode>/profile.jfr on the remote.
+# One file per benchmark; last fork wins (acceptable — clean measurement data).
+# Call collect-ssh.sh afterwards to retrieve the directory.
 #
 # JDK compatibility:
-#   JDK 11–12: -XX:+FlightRecorder is valid but unnecessary; omitted here
-#   JDK 13+:   -XX:+FlightRecorder is deprecated; StartFlightRecording alone suffices
-#   JDK 8:     requires -XX:+UnlockCommercialFeatures -XX:+FlightRecorder (not supported)
-# Future: detect remote JDK version and adjust flags accordingly.
+#   JDK 11+: JFR is built in; -prof jfr uses jcmd JFR.start/JFR.stop internally
+#   JDK 8:   not supported (requires Oracle JDK commercial features)
+# Future: detect remote JDK version and adjust accordingly.
 #
 # Exits non-zero on any failure.
 
@@ -22,24 +23,22 @@ USER="$3"
 KEY="$4"
 REMOTE_PATH="$5"
 JAR_FILENAME="$6"
-DURATION="$7"
-RUN_ID="$8"
+RUN_ID="$7"
 
-REMOTE_RECORDING="/tmp/${RUN_ID}.jfr"
+REMOTE_DIR="/tmp/${RUN_ID}"
 
 SSH_OPTS="-i $KEY -p $PORT -o StrictHostKeyChecking=no -o BatchMode=yes"
 
 echo "==> Profiling $JAR_FILENAME on $USER@$HOST:$PORT"
-echo "    JFR duration: ${DURATION}s  |  recording: $REMOTE_RECORDING"
+echo "    JFR output dir: $REMOTE_DIR"
 echo ""
 
 ssh $SSH_OPTS "$USER@$HOST" "
   set -euo pipefail
+  mkdir -p $REMOTE_DIR
   cd $REMOTE_PATH
-  java \
-    -XX:StartFlightRecording=duration=${DURATION}s,filename=${REMOTE_RECORDING},settings=profile \
-    -jar $REMOTE_PATH/$JAR_FILENAME
+  java -jar $REMOTE_PATH/$JAR_FILENAME -prof 'jfr:dir=$REMOTE_DIR'
 "
 
 echo ""
-echo "Profile complete. Recording at $HOST:$REMOTE_RECORDING"
+echo "Profile complete. Recordings in $HOST:$REMOTE_DIR"

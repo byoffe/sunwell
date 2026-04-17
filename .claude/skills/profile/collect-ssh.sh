@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
-# collect-ssh.sh — SCP a profiling recording from remote host to local results dir
+# collect-ssh.sh — SCP JFR recordings from remote host to local results dir
 #
-# Usage: collect-ssh.sh <host> <port> <user> <key> <remote-file> <local-dir>
+# Usage: collect-ssh.sh <host> <port> <user> <key> <remote-dir> <local-dir>
 #
-# Creates <local-dir> if it does not exist.
-# Produces <local-dir>/recording.<ext> preserving the source file extension.
+# Copies the entire <remote-dir> (containing per-benchmark JFR subdirectories)
+# into <local-dir>. Creates <local-dir> if it does not exist.
+# Fails with the remote path searched if no .jfr files are found.
 #
 # Exits non-zero on any failure.
 
@@ -14,17 +15,28 @@ HOST="$1"
 PORT="$2"
 USER="$3"
 KEY="$4"
-REMOTE_FILE="$5"
+REMOTE_DIR="$5"
 LOCAL_DIR="$6"
 
-EXT="${REMOTE_FILE##*.}"
-LOCAL_RECORDING="$LOCAL_DIR/recording.$EXT"
-
 SCP_OPTS="-i $KEY -P $PORT -o StrictHostKeyChecking=no -o BatchMode=yes"
+SSH_OPTS="-i $KEY -p $PORT -o StrictHostKeyChecking=no -o BatchMode=yes"
 
 mkdir -p "$LOCAL_DIR"
 
-echo "==> Collecting $USER@$HOST:$REMOTE_FILE..."
-scp $SCP_OPTS "$USER@$HOST:$REMOTE_FILE" "$LOCAL_RECORDING"
+echo "==> Verifying JFR recordings at $USER@$HOST:$REMOTE_DIR..."
+JFR_COUNT=$(ssh $SSH_OPTS "$USER@$HOST" "find $REMOTE_DIR -name '*.jfr' 2>/dev/null | wc -l")
+if [ "$JFR_COUNT" -eq 0 ]; then
+  echo "ERROR: No .jfr files found in $HOST:$REMOTE_DIR"
+  exit 1
+fi
+echo "    Found $JFR_COUNT recording(s)"
 
-echo "    Saved: $LOCAL_RECORDING ($(du -h "$LOCAL_RECORDING" | cut -f1))"
+echo "==> Collecting recordings to $LOCAL_DIR..."
+scp -r $SCP_OPTS "$USER@$HOST:$REMOTE_DIR/." "$LOCAL_DIR/"
+
+JFR_FILES=$(find "$LOCAL_DIR" -name "*.jfr")
+echo ""
+echo "Collected:"
+while IFS= read -r f; do
+  echo "    $f ($(du -h "$f" | cut -f1))"
+done <<< "$JFR_FILES"

@@ -35,15 +35,16 @@ If the focus is not a recognized value, stop and list valid focus values.
 **2. Resolve focus to profiler config**
 
 Use the built-in defaults table. Apply any `profile.overrides.<focus>` from
-`sunwell.yml` on top.
+`sunwell.yml` on top. Duration is no longer passed to the script — JMH manages
+recording lifecycle via `-prof jfr`.
 
-| Focus | Profiler | Duration | JVM flags |
-|---|---|---|---|
-| `baseline` | JFR | 60s | `-XX:+FlightRecorder -XX:StartFlightRecording=duration=60s,filename=/tmp/<run-id>.jfr,settings=profile` |
-| `gc` | JFR | 120s | `-XX:+FlightRecorder -XX:StartFlightRecording=duration=120s,filename=/tmp/<run-id>.jfr,settings=profile` |
-| `cpu` | async-profiler | 30s | *(async-profiler not yet available — see note below)* |
-| `memory` | async-profiler | 30s | *(async-profiler not yet available — see note below)* |
-| `lock` | async-profiler | 30s | *(async-profiler not yet available — see note below)* |
+| Focus | Profiler | JMH profiler flag |
+|---|---|---|
+| `baseline` | JFR | `-prof "jfr:dir=/tmp/<run-id>"` |
+| `gc` | JFR | `-prof "jfr:dir=/tmp/<run-id>"` |
+| `cpu` | async-profiler | *(async-profiler not yet available — see note below)* |
+| `memory` | async-profiler | *(async-profiler not yet available — see note below)* |
+| `lock` | async-profiler | *(async-profiler not yet available — see note below)* |
 
 **async-profiler focuses:** if `cpu`, `memory`, or `lock` is requested, stop
 and report: "async-profiler is not yet configured for this target. Use
@@ -62,20 +63,21 @@ Use the output as `<run-id>` (e.g., `20260416-143012`).
 
 ```!
 bash .claude/skills/profile/profile-jfr.sh \
-  {host} {port} {user} {key} {remote-path} {jar-filename} {duration} {run-id}
+  {host} {port} {user} {key} {remote-path} {jar-filename} {run-id}
 ```
 
-If the script exits non-zero, report the error and stop. Do not retry.
+JMH writes per-benchmark recordings to `/tmp/{run-id}/<benchmark>-<mode>/profile.jfr`
+on the remote. If the script exits non-zero, report the error and stop. Do not retry.
 
-**5. Collect the recording**
+**5. Collect the recordings**
 
 ```!
 bash .claude/skills/profile/collect-ssh.sh \
-  {host} {port} {user} {key} /tmp/{run-id}.jfr results/{run-id}
+  {host} {port} {user} {key} /tmp/{run-id} results/{run-id}
 ```
 
-If collect fails (recording not found on remote), report the SSH path checked
-and stop.
+Copies the entire remote directory (all benchmark subdirectories) to `results/{run-id}/`.
+If collect fails (no .jfr files found on remote), report the path searched and stop.
 
 **6. Write experiments.json entry**
 
@@ -90,7 +92,7 @@ Append this entry:
   "target": "<target-name>",
   "focus": "<focus>",
   "profiler": "<jfr|async-profiler>",
-  "artifact-path": "results/<run-id>/recording.jfr",
+  "artifact-path": "results/<run-id>/",
   "analysis-path": null,
   "hypothesis": null,
   "suggested-next-focus": null,
