@@ -29,6 +29,21 @@
 - [x] 10. Run `git status` — confirm no untracked files; `git add` or
           `.gitignore` anything that floats
 
+## Increment 2 — JFR Per-Fork Recording Fix
+
+- [ ] 11. SSH into the Docker target and run a minimal JMH benchmark with
+          `-prof jfr` to confirm where JMH writes per-fork JFR files; document
+          the output path in design.md before touching any scripts
+- [ ] 12. Update `profile-jfr.sh` to pass `-prof jfr` to JMH instead of
+          `-XX:StartFlightRecording=...`; remove the `<duration>` positional arg
+- [ ] 13. Update `collect-ssh.sh` to SCP all `*.jfr` files from the JMH output
+          directory rather than a single `/tmp/<run-id>.jfr`
+- [ ] 14. Update `profile/SKILL.md` steps 4 and 5 to reflect the new script
+          interfaces
+- [ ] 15. Run a live profile + collect to confirm all per-fork recordings land
+          in `results/<run-id>/`
+- [ ] 16. Run `git status` — confirm no untracked files
+
 ## Notes
 
 - Tasks 1–4 are deploy-side; tasks 5–8 are profile-side. Each group is

@@ -180,3 +180,49 @@ Experiment).
 - async-profiler delivery and the `cpu`, `memory`, `lock` focus paths
 - Non-SSH transports
 - Loop resumability from `experiments.json`
+
+---
+
+## Increment 2 — JFR Per-Fork Recording Fix
+
+### Scope
+
+Addresses these requirements acceptance criteria:
+- Profile: "JFR profiling uses JMH's `-prof jfr` option so each benchmark
+  fork gets its own recording"
+- Collect: "All per-fork JFR files produced by `-prof jfr` are collected"
+
+### Approach
+
+Replace the manual `-XX:StartFlightRecording=...` JVM flag with JMH's built-in
+`-prof jfr` profiler option. JMH manages per-fork recording lifecycle and naming
+automatically. Collect retrieves all JFR files produced rather than a single
+hardcoded filename.
+
+### Key Decisions
+
+| Decision | Choice | Rationale |
+|---|---|---|
+| JFR integration point | JMH `-prof jfr` flag | JMH owns fork lifecycle; it knows when each fork starts and stops and names files accordingly |
+| Recording output location | JMH default output dir (to be confirmed by test) | `-prof jfr` writes to a subdirectory in the working dir; exact path confirmed empirically |
+| Collect strategy | SCP all `*.jfr` files from output dir | Per-fork files are named by JMH; glob is safer than predicting filenames |
+| `artifact-path` in experiments.json | Directory path, not single file | Multiple files per run; point to `results/<run-id>/` rather than a single recording |
+
+### File and Component Changes
+
+| File | Change |
+|---|---|
+| `.claude/skills/profile/profile-jfr.sh` | Replace `-XX:StartFlightRecording=...` with JMH `-prof jfr`; remove `<duration>` arg (JMH controls recording lifecycle); confirm output directory |
+| `.claude/skills/profile/collect-ssh.sh` | Collect all `*.jfr` files from JMH output dir rather than a single `/tmp/<run-id>.jfr` |
+| `.claude/skills/profile/SKILL.md` | Update step 4 (profile) and step 5 (collect) to reflect new approach |
+
+### Edge Cases and Failure Modes
+
+- JMH `-prof jfr` output directory location must be confirmed by running a test
+  before finalising the collect script — note this as a research task
+- If no `.jfr` files are found after profiling, collect fails with the remote
+  path searched
+
+### Deferred
+
+- All other stages

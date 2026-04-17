@@ -118,16 +118,20 @@ gate. The loop is invariant. What varies is configuration.
 - [ ] Deploy script is transport-only — no app or target config embedded in it
 
 ### Profile
-- [ ] `/sunwell:profile [target] [--focus <focus>]` SSHs in, translates focus
+- [x] `/sunwell:profile [target] [--focus <focus>]` SSHs in, translates focus
       to profiler/flags/duration, runs benchmark JAR, waits for completion
-- [ ] Focus defaults to `default-focus` in `sunwell.yml` when not specified
-- [ ] Recording saved to `results/<run-id>/recording.<ext>` (`.jfr` for JFR)
-- [ ] `run-id` is deterministic and human-readable (e.g., `20260416-143012`)
-- [ ] Focus and resolved profiler are recorded in `experiments.json`
+- [x] Focus defaults to `default-focus` in `sunwell.yml` when not specified
+- [ ] JFR profiling uses JMH's `-prof jfr` option so each benchmark fork gets
+      its own recording — not a shared `-XX:StartFlightRecording` flag that is
+      overwritten by each fork
+- [x] `run-id` is deterministic and human-readable (e.g., `20260416-143012`)
+- [x] Focus and resolved profiler are recorded in `experiments.json`
 
 ### Collect
-- [ ] Recording is copied back from remote host to local `results/<run-id>/`
-- [ ] `results/experiments.json` is created on first run; subsequent runs append
+- [x] Recording is copied back from remote host to local `results/<run-id>/`
+- [ ] All per-fork JFR files produced by `-prof jfr` are collected, not just
+      a single recording
+- [x] `results/experiments.json` is created on first run; subsequent runs append
 
 ### Analyze
 - [ ] `/sunwell:analyze` reads the recording and writes `results/<run-id>/analysis.md`
