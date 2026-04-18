@@ -140,44 +140,56 @@
 
 ## Increment 6 — Loop
 
-- [ ] 1. Mark Increment 4 and 5 tasks `[x]` in `spec/tasks.md` (done)
-- [ ] 2. Add optional `loop:` block (commented out, with defaults documented)
+- [x] 1. Mark Increment 4 and 5 tasks `[x]` in `spec/tasks.md` (done)
+- [x] 2. Add optional `loop:` block (commented out, with defaults documented)
          to `examples/toy-app/sunwell.yml`
-- [ ] 3. Rewrite `.claude/skills/loop/SKILL.md` — full state-machine orchestration
-         playbook:
-         - **Setup:** parse `--config`, `--target`, `--focus`; read `sunwell.yml`
-           for target + focus + termination config (`loop.improvement-threshold-pct`
-           default 10, `loop.stall-iterations` default 3); read `experiments.json`;
-           detect initial state from last entry per the state machine table
-         - **State machine table:** map each last-entry condition to its resume
-           point (`BASELINE`, `ANALYZE`, `IMPROVE_PROPOSE`, `IMPROVE_IMPLEMENT`,
-           `EXPERIMENT`, or termination check)
-         - **BASELINE:** report `[ITERATION 1] [STAGE 1] Deploy` → follow
-           `.claude/skills/deploy/SKILL.md`; `[STAGE 2] Profile + Collect` →
-           follow `.claude/skills/profile/SKILL.md`; `[STAGE 3] Analyze` →
-           follow `.claude/skills/analyze/SKILL.md`; advance to `IMPROVE_PROPOSE`
-         - **ANALYZE resume:** `[STAGE 3] Analyze` → follow analyze skill; advance
-           to `IMPROVE_PROPOSE`
-         - **IMPROVE_PROPOSE:** `[ITERATION N] [STAGE 4] Improve — proposing` →
-           follow `.claude/skills/improve/SKILL.md` Phase 1 fully; STOP; on
-           `approve` → `IMPROVE_IMPLEMENT`; on `reject` → update
-           `improvement-status: "rejected"`, report, stop loop
-         - **IMPROVE_IMPLEMENT:** `[STAGE 4] Improve — implementing` → follow
-           improve Phase 2; advance to `EXPERIMENT`
-         - **EXPERIMENT:** `[STAGE 5] Experiment` → follow
-           `.claude/skills/experiment/SKILL.md` fully; run termination check
-         - **Termination check:** success = any benchmark `|change-pct| ≥ threshold`
-           in allocation rate or throughput; stall = last `stall-iterations`
-           experiment entries all have all benchmarks `|change-pct| < 2%` or null;
-           if neither → increment iteration counter; advance to `IMPROVE_PROPOSE`
-         - **Final report:** SUCCESS/STALL/STOPPED header; cumulative delta table
-           (first baseline → last experiment for each benchmark); experiment tree path
-- [ ] 4. Test `/sunwell:loop --config examples/toy-app` end-to-end: verify it
-         runs the baseline, enters the Improve gate, accepts `approve`, runs the
-         Experiment stage, performs the termination check, and (if not done)
-         loops back to `IMPROVE_PROPOSE` for iteration 2 with the experiment
-         run's analysis as input
-- [ ] 5. `git status` — confirm no untracked files
+- [x] 3. Rewrite `.claude/skills/loop/SKILL.md` — full state-machine orchestration
+         playbook
+- [x] 4. Test `/sunwell:loop --config examples/toy-app` end-to-end
+- [x] 5. `git status` — confirm no untracked files
+
+## Increment 7 — Results Path, SUCCESS Condition, Clean Skill, Loop Rename
+
+- [ ] 1. `git mv .claude/skills/loop .claude/skills/run` — rename skill directory
+- [ ] 2. Update `.claude/skills/run/SKILL.md`:
+         - Change SUCCESS termination check from ANY benchmark to ALL benchmarks
+         - Update setup step 4: read `{app-path}/sunwell-results/experiments.json`
+         - Update all `results/` path references to `{results-dir}` (derived as
+           `{app-path}/sunwell-results` in setup)
+         - Update reject message to reference `/run` instead of `/sunwell:loop`
+         - Update final report footer: `{results-dir}/experiments.json`
+- [ ] 3. Create `.claude/skills/clean/SKILL.md` — full clean playbook:
+         - Parse `--config <app-path>`; derive `results-dir`
+         - Read `{results-dir}/experiments.json`; collect all unique paths from
+           `files-changed` across all entries
+         - Present confirmation summary: files to revert + directory to delete
+         - On `confirm`: `git restore` each file; delete `{results-dir}/`
+         - Report what was reverted and deleted; on cancel report nothing changed
+         - Edge cases: `git restore` failure per file (continue, report); missing
+           `experiments.json` (stop, nothing to clean); missing `results-dir`
+           (skip deletion)
+- [ ] 4. Update `.claude/skills/profile/SKILL.md`: derive `results-dir =
+         {app-path}/sunwell-results`; replace all `results/` with `{results-dir}/`
+         in steps 5 and 6
+- [ ] 5. Update `.claude/skills/analyze/SKILL.md`: derive `results-dir`; replace
+         all `results/` with `{results-dir}/` throughout all steps
+- [ ] 6. Update `.claude/skills/improve/SKILL.md`: derive `results-dir`; replace
+         all `results/` with `{results-dir}/` throughout both phases
+- [ ] 7. Update `.claude/skills/experiment/SKILL.md`: derive `results-dir`;
+         replace all `results/` with `{results-dir}/` throughout all steps
+- [ ] 8. Create `examples/toy-app/.gitignore` containing `sunwell-results/`
+- [ ] 9. Update repo root `.gitignore`: add `**/sunwell-results/`
+- [ ] 10. Update `CLAUDE.md` repo structure: `loop/SKILL.md` → `run/SKILL.md`;
+          add `clean/SKILL.md`; update results path description
+- [ ] 11. Run `/clean --config examples/toy-app` against the current
+          `examples/toy-app/sunwell-results/` state: verify it presents the
+          confirmation summary, reverts `CpuHog.java`, and deletes the
+          `sunwell-results/` directory
+- [ ] 12. Run `/run --config examples/toy-app` end-to-end: verify results land
+          in `examples/toy-app/sunwell-results/`, loop runs past the first
+          iteration (SUCCESS now requires ALL benchmarks), and the skill is
+          invoked without name collision
+- [ ] 13. `git status` — confirm no untracked files
 
 ## Notes
 

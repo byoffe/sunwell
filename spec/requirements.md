@@ -68,11 +68,11 @@ gate. The loop is invariant. What varies is configuration.
    delta meets an acceptance threshold or three consecutive iterations show no
    improvement.
 
-9. **Experiment tree.** `results/experiments.json` is the persistent record of
-   every run. Each entry records: run-id, timestamp, target, focus, profiler,
-   artifact path, analysis path, hypothesis, suggested next focus, files changed,
-   and measured delta. Claude reads this file at the start of each session to
-   restore continuity.
+9. **Experiment tree.** `{app-path}/sunwell-results/experiments.json` is the
+   persistent record of every run, co-located with `sunwell.yml`. Each entry
+   records: run-id, timestamp, target, focus, profiler, artifact path, analysis
+   path, hypothesis, suggested next focus, files changed, and measured delta.
+   Claude reads this file at the start of each session to restore continuity.
 
 10. **Autonomous loop.** `/sunwell:loop` runs all stages in sequence without
     manual intervention, except at explicit developer gates (approve proposed
@@ -137,14 +137,19 @@ gate. The loop is invariant. What varies is configuration.
 - [x] Focus and resolved profiler are recorded in `experiments.json`
 
 ### Collect
-- [x] Recording is copied back from remote host to local `results/<run-id>/`
+- [x] Recording is copied back from remote host to local
+      `{app-path}/sunwell-results/<run-id>/` (co-located with `sunwell.yml`,
+      not at the repo root)
 - [x] All per-benchmark JFR files produced by `-prof jfr` are collected from
       the JMH output directory
-- [x] `results/experiments.json` is created on first run; subsequent runs append
+- [ ] `{app-path}/sunwell-results/experiments.json` is created on first run;
+      subsequent runs append
+- [ ] `{app-path}/sunwell-results/` is gitignored at the app level
 
 ### Analyze
-- [x] `/sunwell:analyze` reads the recording and writes `results/<run-id>/analysis.md`
-      tailored to the focus used for that run
+- [x] `/sunwell:analyze` reads the recording and writes
+      `{app-path}/sunwell-results/<run-id>/analysis.md` tailored to the focus
+      used for that run
 - [x] Analysis identifies hotspots relevant to focus (CPU, allocation, GC, locks)
 - [x] Analysis is written in plain language, not raw profiler output
 - [x] Claude forms a hypothesis and records a suggested next focus
@@ -171,17 +176,29 @@ gate. The loop is invariant. What varies is configuration.
       then iterates (improve → [gate] → experiment) until termination
 - [ ] Developer gate: loop pauses after each Improve proposal; resumes on
       explicit `approve`; on `reject`, loop stops and preserves state
-- [ ] Termination condition A: any benchmark's delta meets
+- [ ] Termination condition A (SUCCESS): ALL benchmarks meet
       `loop.improvement-threshold-pct` (default 10%) in allocation rate or
-      throughput — loop reports SUCCESS and stops
-- [ ] Termination condition B: the last `loop.stall-iterations` (default 3)
-      consecutive experiment entries all show no improvement across all
-      benchmarks — loop reports STALL and stops
+      throughput — loop reports SUCCESS and stops. A single benchmark improving
+      does not halt the session; all must converge.
+- [ ] Termination condition B (STALL): the last `loop.stall-iterations`
+      (default 3) consecutive experiment entries all show no improvement across
+      all benchmarks — loop reports STALL and stops
 - [ ] Termination thresholds configurable in `sunwell.yml` under a `loop:`
       block; defaults apply if the block is absent
 - [ ] Loop detects interrupted state from `experiments.json` and resumes at
       the correct stage without re-running completed stages
 - [ ] Progress reported per stage: `[ITERATION N] [STAGE M] <name> — <status>`
+- [ ] The project-level skill name does not conflict with the built-in loop
+      scheduler; the sunwell loop is invokable unambiguously in a fresh session
+
+### Clean
+- [ ] `/sunwell:clean [--config <app-path>]` resets the app to a clean state:
+      reads `experiments.json` for all `files-changed` entries and reverts each
+      file via `git restore`, then deletes `{app-path}/sunwell-results/`
+- [ ] Presents a confirmation summary before taking any destructive action:
+      files to revert, run directories to delete
+- [ ] Proceeds only on explicit developer confirmation
+- [ ] Reports what was reverted and deleted; leaves working tree clean
 
 ## JDK Compatibility
 

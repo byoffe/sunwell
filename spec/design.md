@@ -1040,3 +1040,146 @@ experiment entry. Compute it by reading the `delta` chain from experiments.json.
   baseline per invocation; multi-session delta tracking is future work)
 - Automatic regression revert on negative delta (deferred — developer should
   decide whether a regression is acceptable)
+
+---
+
+## Increment 7 — Results Path, SUCCESS Condition, Clean Skill, Loop Rename
+
+### Scope
+
+Addresses these requirements acceptance criteria:
+
+- **Collect:** results path → `{app-path}/sunwell-results/`; gitignore at app level
+- **Loop:** SUCCESS condition ALL (not ANY); skill rename to avoid name collision
+- **Clean:** all criteria
+
+### Approach
+
+Four independent fixes that share an increment because they are all small,
+orthogonal, and none warrants a dedicated design phase.
+
+**Results path** — Every skill already receives `--config <app-path>` and reads
+`sunwell.yml` from that directory. Adding a `results-dir` variable resolved as
+`{app-path}/sunwell-results/` is a one-line change per skill. Scripts receive the
+fully-resolved path as an argument and need no changes — they are path-agnostic.
+
+**SUCCESS condition** — A one-line logic change in the run skill's termination
+check. The old ANY semantics fired on the first benchmark to improve; ALL semantics
+require every benchmark to converge, which is what "done" actually means.
+
+**Clean skill** — New skill. Reads `experiments.json` to discover what was
+changed, presents a confirmation summary, then reverts and deletes. The
+confirmation step is non-negotiable: this is a destructive operation and must be
+explicit.
+
+**Loop rename** — The skill directory `loop/` is renamed to `run/` via `git mv`.
+The conflict with the built-in loop scheduler is structural — two skills with the
+same name in the same discovery scope; renaming is the only clean fix. `run` is
+short, unambiguous, and reads naturally as `/run --config examples/toy-app` in
+dev and `/sunwell:run` in the published plugin.
+
+### Key Decisions
+
+| Decision | Choice | Rationale |
+|---|---|---|
+| Results dir variable name | `results-dir` = `{app-path}/sunwell-results/` | Derived once at skill startup; passed through to all steps; never hardcoded again |
+| Gitignore location | `examples/toy-app/.gitignore` (new) + repo root `.gitignore` (add pattern) | App-level ignore is the principled home; repo root is a catchall for future apps added before they create their own .gitignore |
+| Script path handling | Skills pass fully-resolved paths to scripts | Scripts are path-agnostic; no script changes needed |
+| SUCCESS semantics | ALL benchmarks must meet threshold | ANY fired too eagerly (one benchmark doubling ended the session); ALL means every benchmark has converged — the correct definition of "done" |
+| Loop skill name | `run` | Short, accurate, no conflict with built-in scheduler; consistent with `/sunwell:run` as the published API |
+| Clean confirmation | Always required; no `--force` flag | Destructive operations must be explicit; the cost of one extra keypress is lower than the cost of accidentally nuking a tuning session |
+| What clean reverts | All files listed in any `files-changed` entry across all experiments | The full set of changes the loop applied; partial revert would leave the working tree in an ambiguous state |
+| What clean deletes | Entire `{app-path}/sunwell-results/` directory | All-or-nothing; partial deletion would leave experiments.json inconsistent with the recording files |
+
+### Results Dir in Each Skill
+
+All skills derive `results-dir` the same way immediately after reading `sunwell.yml`:
+
+```
+results-dir = {app-path}/sunwell-results
+```
+
+Occurrences to update (path only — no logic changes):
+
+| Skill | Where |
+|---|---|
+| `profile/SKILL.md` | Step 5 (collect destination), step 6 (experiments.json path, artifact-path) |
+| `analyze/SKILL.md` | Steps 1, 2, 3, 4, 5, 6, 7 — all `results/` references |
+| `improve/SKILL.md` | Steps 1, 5, 6, 7, Phase 2 steps — all `results/` references |
+| `experiment/SKILL.md` | Steps 1, 4, 5, 6, 7, 8 — all `results/` references |
+| `run/SKILL.md` | Setup step 4; final report footer |
+
+### Clean Skill Orchestration
+
+**1. Parse args**
+
+`--config <app-path>` → default `.`. Derive `results-dir`.
+
+**2. Read state**
+
+Read `{results-dir}/experiments.json`. If absent, report "Nothing to clean —
+`experiments.json` not found." and stop.
+
+Collect all unique file paths from `files-changed` across all entries. Deduplicate.
+
+**3. Present confirmation summary**
+
+```
+Sunwell Clean — what will happen:
+  Revert {N} source file(s) via git restore:
+    {file1}
+    {file2}
+    ...
+  Delete: {results-dir}/  ({N} run directories)
+
+Type 'confirm' to proceed, anything else to cancel.
+```
+
+**4. On confirm**
+
+Run `git restore {file}` for each file in the collected set. Report each
+restoration. Then delete `{results-dir}/` entirely.
+
+**5. Report**
+
+```
+Clean complete.
+  Reverted: {N} file(s)
+  Deleted:  {results-dir}/
+Working tree is clean.
+```
+
+On cancel: "Clean cancelled. Nothing was changed."
+
+### File and Component Changes
+
+| File | Change |
+|---|---|
+| `git mv .claude/skills/loop .claude/skills/run` | Rename skill directory |
+| `.claude/skills/run/SKILL.md` | Update SUCCESS (any → all); update all `results/` → `{results-dir}`; fix reject message reference |
+| `.claude/skills/clean/SKILL.md` | New — clean playbook |
+| `.claude/skills/profile/SKILL.md` | Update `results/` → `{results-dir}` |
+| `.claude/skills/analyze/SKILL.md` | Update `results/` → `{results-dir}` |
+| `.claude/skills/improve/SKILL.md` | Update `results/` → `{results-dir}` |
+| `.claude/skills/experiment/SKILL.md` | Update `results/` → `{results-dir}` |
+| `examples/toy-app/.gitignore` | New — `sunwell-results/` |
+| `.gitignore` | Add `**/sunwell-results/` |
+| `CLAUDE.md` | Update repo structure: `loop/` → `run/`; add `clean/`; update results path |
+
+### Edge Cases and Failure Modes
+
+- `git restore` fails for a file (e.g., not tracked by git, already at committed
+  state) → report the failure per file and continue with the rest; do not abort
+  the entire clean
+- `results-dir` does not exist → skip deletion; report "no results directory found"
+- experiments.json lists a file in `files-changed` that no longer exists on disk
+  → skip `git restore` for that file; note in report
+- Developer runs clean mid-loop (improvement approved but experiment not yet run)
+  → clean reverts the improvement; on re-invoke, loop resumes at IMPROVE_PROPOSE
+  and regenerates the proposal from the (now-restored) baseline analysis
+
+### Deferred
+
+- `--dry-run` flag for clean (preview without executing)
+- Selective clean (revert only specific runs, not all)
+- async-profiler focuses
