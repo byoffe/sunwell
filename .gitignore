@@ -7,7 +7,7 @@ target/
 dependency-reduced-pom.xml
 
 # Profiling and benchmark results (always local, never committed)
-results/
+**/sunwell-results/
 
 # Claude Code local settings (user-specific, not project config)
 .claude/settings.local.json

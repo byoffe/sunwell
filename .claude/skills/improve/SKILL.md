@@ -16,7 +16,7 @@ modified until the developer types `approve`.
 
 - `--config <app-path>` — directory containing `sunwell.yml`; defaults to `.`.
   For the toy-app during development, pass `examples/toy-app`.
-- `run-id` — optional; defaults to the most recent entry in `results/experiments.json`
+- `run-id` — optional; defaults to the most recent entry in `{results-dir}/experiments.json`
 
 ---
 
@@ -28,21 +28,23 @@ Parse `$ARGUMENTS`:
 - `--config <app-path>` → use that directory; default to `.`
 - remaining first non-flag token → run-id override
 
-Read `results/experiments.json`. Identify the target run: the named `run-id`
+Derive: `results-dir = {app-path}/sunwell-results`
+
+Read `{results-dir}/experiments.json`. Identify the target run: the named `run-id`
 if provided, otherwise the most recent entry (last in the array).
 
 If `improvement-status` is `"implemented"`, stop:
-> "This run already has an implemented improvement. Run `/sunwell:profile` to
+> "This run already has an implemented improvement. Run `/profile` to
 > start a new loop iteration."
 
 If `improvement-status` is `"proposed"`, a proposal already exists. Read
-`results/<run-id>/proposal.md` and re-present it with the approval prompt.
+`{results-dir}/{run-id}/proposal.md` and re-present it with the approval prompt.
 Do not generate a new proposal.
 
 **2. Read the analysis**
 
-Read `results/<run-id>/analysis.md`. If not found, stop:
-> "No analysis found for `<run-id>`. Run `/sunwell:analyze` first."
+Read `{results-dir}/{run-id}/analysis.md`. If not found, stop:
+> "No analysis found for `<run-id>`. Run `/analyze` first."
 
 Extract:
 - The **Hypothesis** section — identifies the primary bottleneck and the
@@ -64,12 +66,12 @@ The change must be expressible as a unified diff that a reviewer can
 understand at a glance. If the diff would span more than one logical concern,
 narrow it.
 
-**5. Write `results/<run-id>/proposal.md`**
+**5. Write `{results-dir}/{run-id}/proposal.md`**
 
 ```markdown
 # Proposal: {run-id}
 
-**Based on:** `results/{run-id}/analysis.md`
+**Based on:** `{results-dir}/{run-id}/analysis.md`
 
 ## Change
 
@@ -106,8 +108,8 @@ is possible from the data.
 
 **6. Update `experiments.json`**
 
-Read `results/experiments.json`. Find the entry for this `run-id`. Set:
-- `proposal-path` → `"results/<run-id>/proposal.md"`
+Read `{results-dir}/experiments.json`. Find the entry for this `run-id`. Set:
+- `proposal-path` → `"{results-dir}/{run-id}/proposal.md"`
 - `improvement-status` → `"proposed"`
 
 Write the updated JSON back.
@@ -133,10 +135,10 @@ Resume here when the developer responds.
 
 **On `approve` or `approve --focus <override>`:**
 
-1. Read `results/experiments.json`. Find the entry for this `run-id`. Set
+1. Read `{results-dir}/experiments.json`. Find the entry for this `run-id`. Set
    `improvement-status` → `"approved"`. Write back.
 
-2. Read `results/<run-id>/proposal.md`. Extract the diff from the **Diff**
+2. Read `{results-dir}/{run-id}/proposal.md`. Extract the diff from the **Diff**
    section.
 
 3. Apply the diff to the source file(s). Use the Edit tool — do not apply
@@ -146,7 +148,7 @@ Resume here when the developer responds.
    (`baseline`, `gc`, `cpu`, `memory`, `lock`). If invalid, list valid values
    and stop before making any changes.
 
-5. Read `results/experiments.json`. Update the entry:
+5. Read `{results-dir}/experiments.json`. Update the entry:
    - `files-changed` → list of modified file paths
    - `improvement-status` → `"implemented"`
    - `suggested-next-focus` → the override if provided, otherwise leave as-is
@@ -156,22 +158,22 @@ Resume here when the developer responds.
 6. Report:
    - Files changed and lines modified
    - Suggested next focus for the next run
-   - Next step: `Run /sunwell:profile --config <app-path> --focus <focus> to
+   - Next step: `Run /profile --config <app-path> --focus <focus> to
      measure the delta`
 
 **On `reject`:**
 
-1. Read `results/experiments.json`. Find the entry for this `run-id`. Set
+1. Read `{results-dir}/experiments.json`. Find the entry for this `run-id`. Set
    `improvement-status` → `"rejected"`. Write back.
 
 2. Report:
-   > "Proposal rejected. Run `/sunwell:improve` again to generate an alternative."
+   > "Proposal rejected. Run `/improve` again to generate an alternative."
 
 ---
 
 ### Edge Cases
 
-- `analysis.md` not found → stop: "Run `/sunwell:analyze` first"
+- `analysis.md` not found → stop: "Run `/analyze` first"
 - `improvement-status: "implemented"` → stop: "Already implemented. Run profile."
 - `improvement-status: "proposed"` → re-present existing proposal; do not regenerate
 - Source file cited in analysis not found → report path and stop; do not guess

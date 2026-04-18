@@ -1,5 +1,5 @@
 ---
-name: loop
+name: run
 description: Orchestrates the full Sunwell loop — deploy, profile, analyze, improve, experiment — resuming from the last known state in experiments.json. Pauses at the Improve gate for developer approval.
 when_to_use: When the user asks to run the full loop, start an autonomous tuning session, or drive all stages end-to-end.
 argument-hint: "[--config <app-path>] [--target <name>] [--focus <focus>]"
@@ -15,7 +15,7 @@ all stages — deploy, profile, collect, analyze, improve, experiment — and
 drive forward automatically, pausing only for the developer approval gate
 in the Improve stage.
 
-**Usage:** `/loop [--config <app-path>] [--target <name>] [--focus <focus>]`
+**Usage:** `/run [--config <app-path>] [--target <name>] [--focus <focus>]`
 
 - `--config <app-path>` — directory containing `sunwell.yml` (default: `.`;
   for toy-app during development, pass `examples/toy-app`)
@@ -43,10 +43,12 @@ Read termination config (defaults apply if the `loop:` block is absent):
 - `improvement-threshold-pct`: default `10`
 - `stall-iterations`: default `3`
 
+Derive: `results-dir = {app-path}/sunwell-results`
+
 **3. Detect state**
 
-Read `results/experiments.json` if it exists. If absent or empty, state is
-`BASELINE`.
+Read `{results-dir}/experiments.json` if it exists. If absent or empty, state
+is `BASELINE`.
 
 Inspect the **last entry** in the array and map it to a resume state:
 
@@ -62,9 +64,9 @@ Inspect the **last entry** in the array and map it to a resume state:
 
 **4. Determine iteration counter**
 
-Count entries in `experiments.json` where `parent-run-id` is non-null (these
-are experiment runs, one per iteration). Iteration N = count + 1 for the
-current iteration.
+Count entries in `{results-dir}/experiments.json` where `parent-run-id` is
+non-null (these are experiment runs, one per iteration). Iteration N = count + 1
+for the current iteration.
 
 **5. Report**
 
@@ -92,7 +94,7 @@ Spawn an Agent with this prompt:
 > success or 'Deploy failed: {reason}' on failure."
 
 If the agent reports failure, stop:
-> "Loop stopped at Deploy. Fix the deploy error and re-invoke `/loop`
+> "Loop stopped at Deploy. Fix the deploy error and re-invoke `/run`
 > to resume — the loop will re-enter at Deploy."
 
 **[ITERATION 1] [STAGE 2] Profile + Collect**
@@ -129,7 +131,7 @@ A previous run collected successfully but analyze did not complete.
 
 Spawn an Agent with this prompt:
 > "Read `.claude/skills/analyze/SKILL.md` and execute it for the most recent
-> run-id in `results/experiments.json` with arguments `--config {app-path}`.
+> run-id in `{results-dir}/experiments.json` with arguments `--config {app-path}`.
 > Report 'Analyze complete' on success or 'Analyze failed: {reason}' on failure."
 
 If the agent reports failure, stop:
@@ -146,8 +148,8 @@ Advance to `IMPROVE_PROPOSE`.
 Read and follow `.claude/skills/improve/SKILL.md` **Phase 1 only**, passing
 `--config {app-path}`.
 
-The improve skill will write `proposal.md`, update `experiments.json`, present
-the proposal, and **stop** waiting for developer input.
+The improve skill will write `proposal.md`, update `{results-dir}/experiments.json`,
+present the proposal, and **stop** waiting for developer input.
 
 When the developer responds:
 
@@ -155,13 +157,13 @@ When the developer responds:
 Advance to `IMPROVE_IMPLEMENT`, carrying the focus override if present.
 
 **On `reject`:**
-Read `results/experiments.json`. Find the last entry. Set
+Read `{results-dir}/experiments.json`. Find the last entry. Set
 `improvement-status` → `"rejected"`. Write back.
 
 Report:
-> "Loop stopped. Last proposal rejected. Re-invoke `/sunwell:loop` to
-> generate an alternative proposal from the same analysis, or run
-> `/sunwell:improve --config {app-path}` manually."
+> "Loop stopped. Last proposal rejected. Re-invoke `/run` to generate an
+> alternative proposal from the same analysis, or run `/improve --config
+> {app-path}` manually."
 
 Stop.
 
@@ -174,8 +176,8 @@ Stop.
 Read and follow `.claude/skills/improve/SKILL.md` **Phase 2 only**, using the
 `approve` (or `approve --focus <override>`) response already received.
 
-The improve skill will apply the diff and update `experiments.json` with
-`files-changed` and `improvement-status: "implemented"`.
+The improve skill will apply the diff and update `{results-dir}/experiments.json`
+with `files-changed` and `improvement-status: "implemented"`.
 
 Advance to `EXPERIMENT`.
 
@@ -189,7 +191,8 @@ Read and follow `.claude/skills/experiment/SKILL.md` in full, passing
 `--config {app-path}`.
 
 The experiment skill deploys, profiles, analyzes, computes delta, and updates
-`experiments.json` with the new entry (including `parent-run-id` and `delta`).
+`{results-dir}/experiments.json` with the new entry (including `parent-run-id`
+and `delta`).
 
 After the experiment skill completes, run the **Termination Check**.
 
@@ -197,22 +200,23 @@ After the experiment skill completes, run the **Termination Check**.
 
 ## Termination Check
 
-Read the `delta` field from the most recent entry in `experiments.json`.
+Read the `delta` field from the most recent entry in
+`{results-dir}/experiments.json`.
 
 **Success check:**
 
-For each benchmark in `delta.metrics`, check:
-- `allocation-rate-mb-s.change-pct` — if non-null and `change-pct ≤ -{threshold}%`
-  (i.e., allocation rate dropped by at least threshold pct) → SUCCESS
-- `throughput-ops-s.change-pct` — if non-null and `change-pct ≥ +{threshold}%`
-  (i.e., throughput increased by at least threshold pct) → SUCCESS
+For each benchmark in `delta.metrics`, a benchmark "has improved" if:
+- `allocation-rate-mb-s.change-pct` is non-null and `change-pct ≤ -{threshold}%`
+  (i.e., allocation rate dropped by at least threshold pct), OR
+- `throughput-ops-s.change-pct` is non-null and `change-pct ≥ +{threshold}%`
+  (i.e., throughput increased by at least threshold pct)
 
-If ANY benchmark meets either condition → **go to Final Report (SUCCESS)**.
+If ALL benchmarks have improved → **go to Final Report (SUCCESS)**.
 
 **Stall check:**
 
-Look at the last `{stall-iterations}` entries in `experiments.json` that
-have a non-null `delta` field. If there are fewer than `stall-iterations`
+Look at the last `{stall-iterations}` entries in `{results-dir}/experiments.json`
+that have a non-null `delta` field. If there are fewer than `stall-iterations`
 such entries, check all available ones.
 
 For each such entry, a benchmark is "not improving" if both:
@@ -252,7 +256,7 @@ Cumulative delta ({first-baseline-run-id} → {last-experiment-run-id}):
     Throughput:      {first-baseline} → {last-experiment} ops/s  ({total-change-pct}%)
     (n/a where metric unavailable for either end)
 
-Experiment tree: results/experiments.json
+Experiment tree: {results-dir}/experiments.json
 ```
 
 **On STALL:**
@@ -269,24 +273,24 @@ Cumulative delta ({first-baseline-run-id} → {last-experiment-run-id}):
     Allocation rate: {first-baseline} → {last-experiment} MB/s  ({total-change-pct}%)
     Throughput:      {first-baseline} → {last-experiment} ops/s  ({total-change-pct}%)
 
-Experiment tree: results/experiments.json
+Experiment tree: {results-dir}/experiments.json
 ```
 
 **Cumulative delta computation:**
 
-- First baseline: the first entry in `experiments.json` that has
+- First baseline: the first entry in `{results-dir}/experiments.json` that has
   `analysis-path` set and `parent-run-id: null` (the original baseline run)
 - Last experiment: the most recent entry with a non-null `delta`
 - For each benchmark, read allocation rate from each run's
-  `summaries/{benchmark}/gc.txt` and throughput from `jmh-output.txt`
-  (null if absent). Compute overall `change-pct` the same way as the
-  per-experiment delta.
+  `{results-dir}/{run-id}/summaries/{benchmark}/gc.txt` and throughput from
+  `{results-dir}/{run-id}/jmh-output.txt` (null if absent). Compute overall
+  `change-pct` the same way as the per-experiment delta.
 
 ---
 
 ## Edge Cases
 
-- `experiments.json` missing and `--focus <non-baseline>` given → warn:
+- `{results-dir}/experiments.json` missing and `--focus <non-baseline>` given → warn:
   "First run should use baseline focus. Continuing with `{focus}` as specified."
   Proceed.
 - `improvement-status: "rejected"` on last entry → state is `IMPROVE_PROPOSE`;

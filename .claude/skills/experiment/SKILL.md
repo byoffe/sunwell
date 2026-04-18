@@ -17,7 +17,7 @@ cycle, computes the delta vs. the baseline run, and records the result in
 - `--config <app-path>` — directory containing `sunwell.yml`; defaults to `.`.
   For the toy-app during development, pass `examples/toy-app`.
 - `run-id` — optional; the improvement run to experiment against. Defaults to
-  the most recent entry in `results/experiments.json` where
+  the most recent entry in `{results-dir}/experiments.json` where
   `improvement-status` is `"implemented"`.
 
 ---
@@ -30,7 +30,9 @@ Parse `$ARGUMENTS`:
 - `--config <app-path>` → use that directory; default to `.`
 - remaining first non-flag token → run-id override
 
-Read `results/experiments.json`. Identify the **improvement run**: the named
+Derive: `results-dir = {app-path}/sunwell-results`
+
+Read `{results-dir}/experiments.json`. Identify the **improvement run**: the named
 `run-id`, or the most recent entry where `improvement-status: "implemented"`.
 
 If no such entry exists, stop:
@@ -67,7 +69,7 @@ If the agent reports failure, stop:
 
 **4. Capture run-id and record parent**
 
-Read `results/experiments.json`. The last entry is the one the profile agent
+Read `{results-dir}/experiments.json`. The last entry is the one the profile agent
 just wrote. Extract its `run-id` as `{experiment-run-id}`.
 
 Update that entry: set `"parent-run-id": "{baseline-run-id}"`. Write back.
@@ -84,25 +86,25 @@ If the agent reports failure, stop:
 
 **6. Read analysis results**
 
-Read `results/experiments.json`. Extract from the experiment entry:
+Read `{results-dir}/experiments.json`. Extract from the experiment entry:
 - `analysis-path`, `hypothesis`, `suggested-next-focus`
 
 **7. Compute delta**
 
-For each benchmark present in `results/{experiment-run-id}/summaries/`:
+For each benchmark present in `{results-dir}/{experiment-run-id}/summaries/`:
 
 *Throughput:*
-- Experiment: read `results/{experiment-run-id}/jmh-output.txt`. Find the
+- Experiment: read `{results-dir}/{experiment-run-id}/jmh-output.txt`. Find the
   line for this benchmark. Extract the `Score` value (ops/s).
-- Baseline: read `results/{baseline-run-id}/jmh-output.txt` if it exists.
+- Baseline: read `{results-dir}/{baseline-run-id}/jmh-output.txt` if it exists.
   Extract the same benchmark's score. If the file is absent, set to `null`.
 - Compute `change-pct` = `(experiment - baseline) / baseline * 100` where
   both values are non-null; otherwise `null`.
 
 *Allocation rate:*
-- Experiment: read `results/{experiment-run-id}/summaries/{benchmark}/gc.txt`.
+- Experiment: read `{results-dir}/{experiment-run-id}/summaries/{benchmark}/gc.txt`.
   Extract the `Allocation rate` line value (MB/s).
-- Baseline: read `results/{baseline-run-id}/summaries/{benchmark}/gc.txt` if
+- Baseline: read `{results-dir}/{baseline-run-id}/summaries/{benchmark}/gc.txt` if
   it exists. Extract the same value. If absent, set to `null`.
 - Compute `change-pct` the same way.
 
@@ -129,7 +131,7 @@ Build the `delta` object:
 }
 ```
 
-Write the `delta` field to the experiment entry in `results/experiments.json`.
+Write the `delta` field to the experiment entry in `{results-dir}/experiments.json`.
 
 **8. Report**
 
@@ -147,7 +149,7 @@ Delta per benchmark:
     Allocation rate: {baseline} → {experiment} MB/s   ({change-pct}%)
     (null values shown as "n/a")
 
-Analysis: results/{experiment-run-id}/analysis.md
+Analysis: {results-dir}/{experiment-run-id}/analysis.md
 Hypothesis: {hypothesis}
 Suggested next focus: {suggested-next-focus}
 

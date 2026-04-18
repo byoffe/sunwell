@@ -150,15 +150,15 @@
 
 ## Commit 7 — Results Path, SUCCESS Condition, Clean Skill, Loop Rename
 
-- [ ] 1. `git mv .claude/skills/loop .claude/skills/run` — rename skill directory
-- [ ] 2. Update `.claude/skills/run/SKILL.md`:
+- [x] 1. `git mv .claude/skills/loop .claude/skills/run` — rename skill directory
+- [x] 2. Update `.claude/skills/run/SKILL.md`:
          - Change SUCCESS termination check from ANY benchmark to ALL benchmarks
          - Update setup step 4: read `{app-path}/sunwell-results/experiments.json`
          - Update all `results/` path references to `{results-dir}` (derived as
            `{app-path}/sunwell-results` in setup)
          - Update reject message to reference `/run` instead of `/sunwell:loop`
          - Update final report footer: `{results-dir}/experiments.json`
-- [ ] 3. Create `.claude/skills/clean/SKILL.md` — full clean playbook:
+- [x] 3. Create `.claude/skills/clean/SKILL.md` — full clean playbook:
          - Parse `--config <app-path>`; derive `results-dir`
          - Read `{results-dir}/experiments.json`; collect all unique paths from
            `files-changed` across all entries
@@ -168,18 +168,19 @@
          - Edge cases: `git restore` failure per file (continue, report); missing
            `experiments.json` (stop, nothing to clean); missing `results-dir`
            (skip deletion)
-- [ ] 4. Update `.claude/skills/profile/SKILL.md`: derive `results-dir =
+- [x] 4. Update `.claude/skills/profile/SKILL.md`: derive `results-dir =
          {app-path}/sunwell-results`; replace all `results/` with `{results-dir}/`
          in steps 5 and 6
-- [ ] 5. Update `.claude/skills/analyze/SKILL.md`: derive `results-dir`; replace
+- [x] 5. Update `.claude/skills/analyze/SKILL.md`: derive `results-dir`; replace
          all `results/` with `{results-dir}/` throughout all steps
-- [ ] 6. Update `.claude/skills/improve/SKILL.md`: derive `results-dir`; replace
+- [x] 6. Update `.claude/skills/improve/SKILL.md`: derive `results-dir`; replace
          all `results/` with `{results-dir}/` throughout both phases
-- [ ] 7. Update `.claude/skills/experiment/SKILL.md`: derive `results-dir`;
+- [x] 7. Update `.claude/skills/experiment/SKILL.md`: derive `results-dir`;
          replace all `results/` with `{results-dir}/` throughout all steps
-- [ ] 8. Create `examples/toy-app/.gitignore` containing `sunwell-results/`
-- [ ] 9. Update repo root `.gitignore`: add `**/sunwell-results/`
-- [ ] 10. Update `CLAUDE.md` repo structure: `loop/SKILL.md` → `run/SKILL.md`;
+- [x] 8. Update repo root `.gitignore`: add `**/sunwell-results/`, remove dead `results/`
+         (app-level .gitignore not created — root `**/sunwell-results/` covers all apps; DRY)
+- [x] 9. *(merged into task 8)*
+- [x] 10. Update `CLAUDE.md` repo structure: `loop/SKILL.md` → `run/SKILL.md`;
           add `clean/SKILL.md`; update results path description
 - [ ] 11. Run `/clean --config examples/toy-app` against the current
           `examples/toy-app/sunwell-results/` state: verify it presents the

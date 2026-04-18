@@ -142,9 +142,9 @@ gate. The loop is invariant. What varies is configuration.
       not at the repo root)
 - [x] All per-benchmark JFR files produced by `-prof jfr` are collected from
       the JMH output directory
-- [ ] `{app-path}/sunwell-results/experiments.json` is created on first run;
+- [x] `{app-path}/sunwell-results/experiments.json` is created on first run;
       subsequent runs append
-- [ ] `{app-path}/sunwell-results/` is gitignored at the app level
+- [x] `{app-path}/sunwell-results/` is gitignored at the app level
 
 ### Analyze
 - [x] `/sunwell:analyze` reads the recording and writes
@@ -159,43 +159,43 @@ gate. The loop is invariant. What varies is configuration.
 - [x] Hints apply to all focuses — they narrow interpretation, not recording scope
 
 ### Improve
-- [ ] `/sunwell:improve` proposes one targeted change based on `analysis.md`
-- [ ] Proposal includes: code change, rationale, and suggested focus for next run
-- [ ] Given `/sunwell:improve` formulates a proposal, when proposal.md is written and experiments.json updated with `improvement-status: "proposed"`, then no source file has been modified yet
-- [ ] Given a proposal is presented, when the developer does not type `approve`, then no source files are modified
+- [x] `/sunwell:improve` proposes one targeted change based on `analysis.md`
+- [x] Proposal includes: code change, rationale, and suggested focus for next run
+- [x] Given `/sunwell:improve` formulates a proposal, when proposal.md is written and experiments.json updated with `improvement-status: "proposed"`, then no source file has been modified yet
+- [x] Given a proposal is presented, when the developer does not type `approve`, then no source files are modified
 
 ### Experiment
-- [ ] `/sunwell:experiment` applies the approved change and runs the full loop
+- [x] `/sunwell:experiment` applies the approved change and runs the full loop
       with the confirmed focus
-- [ ] Delta (throughput, latency, allocation rate) is recorded vs. baseline
-- [ ] Loop terminates when delta meets threshold or three consecutive iterations
+- [x] Delta (throughput, latency, allocation rate) is recorded vs. baseline
+- [x] Loop terminates when delta meets threshold or three consecutive iterations
       show no improvement
 
 ### Loop
-- [ ] `/sunwell:loop` runs: baseline (deploy → profile → collect → analyze),
+- [x] `/sunwell:loop` runs: baseline (deploy → profile → collect → analyze),
       then iterates (improve → [gate] → experiment) until termination
-- [ ] Given the loop reaches an Improve proposal, when the developer has not typed `approve`, then the loop is paused and no further stages execute; on `reject`, loop stops and preserves state in experiments.json
-- [ ] Termination condition A (SUCCESS): ALL benchmarks meet
+- [x] Given the loop reaches an Improve proposal, when the developer has not typed `approve`, then the loop is paused and no further stages execute; on `reject`, loop stops and preserves state in experiments.json
+- [x] Termination condition A (SUCCESS): ALL benchmarks meet
       `loop.improvement-threshold-pct` (default 10%) in allocation rate or
       throughput — loop reports SUCCESS and stops. A single benchmark improving
       does not halt the session; all must converge.
-- [ ] Termination condition B (STALL): the last `loop.stall-iterations`
+- [x] Termination condition B (STALL): the last `loop.stall-iterations`
       (default 3) consecutive experiment entries all show no improvement across
       all benchmarks — loop reports STALL and stops
-- [ ] Termination thresholds configurable in `sunwell.yml` under a `loop:`
+- [x] Termination thresholds configurable in `sunwell.yml` under a `loop:`
       block; defaults apply if the block is absent
-- [ ] Given experiments.json records a partial run state, when `/sunwell:loop` is invoked, then it resumes from the interrupted stage without re-running completed stages
-- [ ] Progress reported per stage: `[ITERATION N] [STAGE M] <name> — <status>`
-- [ ] The project-level skill name does not conflict with the built-in loop
+- [x] Given experiments.json records a partial run state, when `/sunwell:loop` is invoked, then it resumes from the interrupted stage without re-running completed stages
+- [x] Progress reported per stage: `[ITERATION N] [STAGE M] <name> — <status>`
+- [x] The project-level skill name does not conflict with the built-in loop
       scheduler; the sunwell loop is invokable unambiguously in a fresh session
 
 ### Clean
-- [ ] `/sunwell:clean [--config <app-path>]` resets the app to a clean state:
+- [x] `/sunwell:clean [--config <app-path>]` resets the app to a clean state:
       reads `experiments.json` for all `files-changed` entries and reverts each
       file via `git restore`, then deletes `{app-path}/sunwell-results/`
-- [ ] Given `/sunwell:clean` is invoked, when the confirmation summary is presented, then no files have been reverted and no directories deleted yet
-- [ ] Given the confirmation summary is presented, when the developer does not type `confirm`, then no files are reverted and no directories are deleted
-- [ ] Reports what was reverted and deleted; leaves working tree clean
+- [x] Given `/sunwell:clean` is invoked, when the confirmation summary is presented, then no files have been reverted and no directories deleted yet
+- [x] Given the confirmation summary is presented, when the developer does not type `confirm`, then no files are reverted and no directories are deleted
+- [x] Reports what was reverted and deleted; leaves working tree clean
 
 ## JDK Compatibility
 

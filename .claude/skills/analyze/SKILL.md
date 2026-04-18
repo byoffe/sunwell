@@ -17,7 +17,7 @@ hypothesis and suggested next focus.
 - `--config <app-path>` — directory containing `sunwell.yml`; defaults to `.`
   (current working directory). For the toy-app during development, pass
   `examples/toy-app`.
-- `run-id` — optional; defaults to the most recent entry in `results/experiments.json`
+- `run-id` — optional; defaults to the most recent entry in `{results-dir}/experiments.json`
 
 ---
 
@@ -29,8 +29,11 @@ Parse `$ARGUMENTS`:
 - `--config <app-path>` → use that directory; default to `.`
 - remaining first non-flag token → run-id override
 
-Read `results/experiments.json`. Identify the target run: the named `run-id`
-if provided, otherwise the most recent entry (last in the array). Extract:
+Derive: `results-dir = {app-path}/sunwell-results`
+
+Read `{results-dir}/experiments.json`. Identify the target run: the named
+`run-id` if provided, otherwise the most recent entry (last in the array).
+Extract:
 - `run-id`, `focus`, `target`
 
 Read `{app-path}/sunwell.yml`. Extract `analyze.hints` if present:
@@ -39,13 +42,13 @@ Read `{app-path}/sunwell.yml`. Extract `analyze.hints` if present:
 
 **2. Discover recordings**
 
-Glob `results/{run-id}/**/profile.jfr`. Each file is one benchmark.
+Glob `{results-dir}/{run-id}/**/profile.jfr`. Each file is one benchmark.
 Extract a short benchmark name from the directory path — the portion between
 `{run-id}/` and the final `/profile.jfr` (e.g.,
 `dev.sunwell.toy.CpuHogBenchmark.deduplicateTags-Throughput`).
 
 If no `.jfr` files are found, stop: "No recordings found under
-`results/{run-id}/`. Run `/profile` first."
+`{results-dir}/{run-id}/`. Run `/profile` first."
 
 **3. Determine active dimensions**
 
@@ -77,7 +80,7 @@ java .claude/skills/analyze/summarize-gc.java {jfr-path}
 ```
 
 Write each script's output to:
-`results/{run-id}/summaries/{benchmark-short-name}/{dimension}.txt`
+`{results-dir}/{run-id}/summaries/{benchmark-short-name}/{dimension}.txt`
 
 Create the summaries directory if it does not exist. Scripts for different
 benchmarks may run in parallel; scripts for the same benchmark run in parallel
@@ -105,7 +108,7 @@ Collect all subagent findings.
 **6. Reduce into analysis.md**
 
 Read all subagent findings (small structured text). Synthesize into
-`results/{run-id}/analysis.md` using this structure:
+`{results-dir}/{run-id}/analysis.md` using this structure:
 
 ```markdown
 # Analysis: {run-id}
@@ -137,12 +140,12 @@ that conclusion? Be specific — cite methods, line numbers, or metrics.
 ```
 
 Write the file. Plain language throughout. No raw profiler output in the
-analysis — the summaries stay in `results/{run-id}/summaries/`.
+analysis — the summaries stay in `{results-dir}/{run-id}/summaries/`.
 
 **7. Update experiments.json**
 
-Read `results/experiments.json`. Find the entry for this `run-id`. Set:
-- `analysis-path` → `"results/{run-id}/analysis.md"`
+Read `{results-dir}/experiments.json`. Find the entry for this `run-id`. Set:
+- `analysis-path` → `"{results-dir}/{run-id}/analysis.md"`
 - `suggested-next-focus` → the focus name from the Suggested Next Focus section
 - `hypothesis` → first sentence of the Hypothesis section
 
@@ -152,7 +155,7 @@ Write the updated JSON back.
 
 Confirm:
 - Run-id, focus, number of benchmarks analyzed
-- Summary files written to `results/{run-id}/summaries/`
+- Summary files written to `{results-dir}/{run-id}/summaries/`
 - `analysis.md` path
 - Suggested next focus
 - Ready for improve stage

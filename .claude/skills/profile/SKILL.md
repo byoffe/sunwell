@@ -42,6 +42,8 @@ Resolve focus: `--focus` arg → `default-focus` → `baseline`.
 If the target does not exist in `sunwell.yml`, stop and list available targets.
 If the focus is not a recognized value, stop and list valid focus values.
 
+Derive: `results-dir = {app-path}/sunwell-results`
+
 **2. Resolve focus to profiler config**
 
 Use the built-in defaults table. Apply any `profile.overrides.<focus>` from
@@ -83,15 +85,15 @@ on the remote. If the script exits non-zero, report the error and stop. Do not r
 
 ```!
 bash .claude/skills/profile/collect-ssh.sh \
-  {host} {port} {user} {key} /tmp/{run-id} results/{run-id}
+  {host} {port} {user} {key} /tmp/{run-id} {results-dir}/{run-id}
 ```
 
-Copies the entire remote directory (all benchmark subdirectories) to `results/{run-id}/`.
+Copies the entire remote directory (all benchmark subdirectories) to `{results-dir}/{run-id}/`.
 If collect fails (no .jfr files found on remote), report the path searched and stop.
 
 **6. Write experiments.json entry**
 
-Read `results/experiments.json` if it exists; create it if not.
+Read `{results-dir}/experiments.json` if it exists; create it if not.
 
 Append this entry:
 
@@ -102,7 +104,7 @@ Append this entry:
   "target": "<target-name>",
   "focus": "<focus>",
   "profiler": "<jfr|async-profiler>",
-  "artifact-path": "results/<run-id>/",
+  "artifact-path": "{results-dir}/<run-id>/",
   "analysis-path": null,
   "hypothesis": null,
   "suggested-next-focus": null,
@@ -114,7 +116,7 @@ Append this entry:
 }
 ```
 
-Write the updated JSON back to `results/experiments.json`.
+Write the updated JSON back to `{results-dir}/experiments.json`.
 
 **7. Report**
 

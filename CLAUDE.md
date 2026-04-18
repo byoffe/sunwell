@@ -33,7 +33,8 @@ concrete implementations. Not before.
       .claude/
         skills/                       <- auto-discovered project skills (temporary home)
           spec/SKILL.md               <- spec workflow (requirements→design→tasks)
-          loop/SKILL.md               <- orchestrator: runs the full loop
+          run/SKILL.md                <- orchestrator: runs the full loop
+          clean/SKILL.md              <- revert experiment changes + delete results dir
           deploy/
             SKILL.md                  <- reads sunwell.yml, calls deploy-ssh.sh
             deploy-ssh.sh             <- transport: scp JAR + verify (no config)
@@ -47,7 +48,7 @@ concrete implementations. Not before.
             summarize-alloc.java      <- ObjectAllocationSample → ranked allocation table
             summarize-gc.java         <- GC events → pause stats, heap, allocation rate
           improve/SKILL.md            <- propose improvements from analysis
-          experiment/SKILL.md         <- apply change → loop → record delta
+          experiment/SKILL.md         <- apply change → profile → analyze → record delta
       spec/                           <- active feature spec (one at a time; empty on main)
         .gitkeep
       harness/                        <- future home of shared Java code
@@ -61,11 +62,11 @@ concrete implementations. Not before.
             MemoryHogBenchmark.java
           pom.xml
           sunwell.yml                 <- app + target config for toy-app
+          sunwell-results/            <- gitignored; profiling output + experiment tree
+            experiments.json          <- experiment tree (created on first profile run)
         docker/
           Dockerfile
           docker-compose.yml
-      results/                        <- gitignored; profiling output + experiment tree
-        experiments.json              <- experiment tree (created on first loop run)
       pom.xml                         <- parent POM
       CLAUDE.md                       <- this file (permanent)
       README.md
