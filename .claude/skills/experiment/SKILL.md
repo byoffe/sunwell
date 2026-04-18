@@ -3,14 +3,14 @@ name: experiment
 description: Deploys an approved code change, runs a full profile + analyze cycle, computes the throughput and allocation-rate delta vs. the baseline run, and records the result in experiments.json.
 when_to_use: When the user asks to run an experiment, measure a delta, or validate an approved improvement against a baseline.
 argument-hint: "[--config <app-path>] [run-id]"
-allowed-tools: "Agent Bash Read Write"
+allowed-tools: "Agent Read Write"
 ---
 
 ## Experiment
 
-Deploys the code change applied by `/sunwell:improve`, runs a full
-profile + analyze cycle, computes the delta vs. the baseline run, and
-records the result in `experiments.json`.
+Deploys the code change applied by `/improve`, runs a full profile + analyze
+cycle, computes the delta vs. the baseline run, and records the result in
+`experiments.json`.
 
 **Usage:** `/experiment [--config <app-path>] [run-id]`
 
@@ -34,7 +34,7 @@ Read `results/experiments.json`. Identify the **improvement run**: the named
 `run-id`, or the most recent entry where `improvement-status: "implemented"`.
 
 If no such entry exists, stop:
-> "No implemented improvement found. Run `/sunwell:improve` first."
+> "No implemented improvement found. Run `/improve` first."
 
 Extract from the improvement run:
 - `suggested-next-focus` — focus for this experiment's profile run
@@ -44,101 +44,58 @@ Identify the **baseline run**: the most recent entry before the improvement run
 where `analysis-path` is non-null (i.e., an analyzed run with no parent
 experiment). This is the run the delta will be measured against.
 
-Read `{app-path}/sunwell.yml`. Extract target config (host, port, user, key,
-remote-path, jar).
-
 **2. Deploy**
 
-The improvement is already applied to the working tree. Build and deploy it:
+Spawn an Agent with this prompt:
+> "Read `.claude/skills/deploy/SKILL.md` and execute it with arguments
+> `--config {app-path} --target {target}`. Report 'Deploy complete' on
+> success or 'Deploy failed: {reason}' on failure."
 
-```!
-bash .claude/skills/deploy/deploy-ssh.sh \
-  {host} {port} {user} {key} {jar} {remote-path}
-```
+If the agent reports failure, stop:
+> "Experiment stopped at Deploy. {agent error}
+> The source change remains in the working tree."
 
-If deploy fails, stop and report. The source change remains in the working tree.
+**3. Profile and Collect**
 
-**3. Generate run-id**
+Spawn an Agent with this prompt:
+> "Read `.claude/skills/profile/SKILL.md` and execute it with arguments
+> `--config {app-path} --focus {suggested-next-focus}`. Report 'Profile
+> complete' on success or 'Profile failed: {reason}' on failure."
 
-```!
-date -u +%Y%m%d-%H%M%S
-```
+If the agent reports failure, stop:
+> "Experiment stopped at Profile. {agent error}"
 
-Use the output as `<experiment-run-id>`.
+**4. Capture run-id and record parent**
 
-**4. Profile**
+Read `results/experiments.json`. The last entry is the one the profile agent
+just wrote. Extract its `run-id` as `{experiment-run-id}`.
 
-```!
-bash .claude/skills/profile/profile-jfr.sh \
-  {host} {port} {user} {key} {remote-path} {jar-filename} {experiment-run-id}
-```
+Update that entry: set `"parent-run-id": "{baseline-run-id}"`. Write back.
 
-JMH stdout is captured to `/tmp/{experiment-run-id}/jmh-output.txt` on the
-remote. If the script exits non-zero, stop and report.
+**5. Analyze**
 
-**5. Collect**
+Spawn an Agent with this prompt:
+> "Read `.claude/skills/analyze/SKILL.md` and execute it with arguments
+> `--config {app-path} {experiment-run-id}`. Report 'Analyze complete' on
+> success or 'Analyze failed: {reason}' on failure."
 
-```!
-bash .claude/skills/profile/collect-ssh.sh \
-  {host} {port} {user} {key} /tmp/{experiment-run-id} results/{experiment-run-id}
-```
+If the agent reports failure, stop:
+> "Experiment stopped at Analyze. {agent error}"
 
-Copies all JFR recordings and `jmh-output.txt` to `results/{experiment-run-id}/`.
-If collect fails, stop and report.
+**6. Read analysis results**
 
-**6. Write experiments.json entry**
+Read `results/experiments.json`. Extract from the experiment entry:
+- `analysis-path`, `hypothesis`, `suggested-next-focus`
 
-Append a new entry for this experiment run:
+**7. Compute delta**
 
-```json
-{
-  "run-id": "<experiment-run-id>",
-  "timestamp": "<ISO-8601 UTC>",
-  "target": "<target-name>",
-  "focus": "<suggested-next-focus>",
-  "profiler": "jfr",
-  "artifact-path": "results/<experiment-run-id>/",
-  "analysis-path": null,
-  "hypothesis": null,
-  "suggested-next-focus": null,
-  "files-changed": [],
-  "delta": null,
-  "proposal-path": null,
-  "improvement-status": null,
-  "parent-run-id": "<baseline-run-id>"
-}
-```
-
-Write back to `results/experiments.json`.
-
-**7. Analyze**
-
-Run the full analyze skill playbook (same steps as `/sunwell:analyze`) for
-the experiment run:
-
-- Read `{app-path}/sunwell.yml` for `analyze.hints`
-- Glob `results/{experiment-run-id}/**/profile.jfr` to discover benchmarks
-- Determine active dimensions from the focus table
-- Run summarization scripts per benchmark × dimension; write to
-  `results/{experiment-run-id}/summaries/`
-- Spawn one subagent per benchmark to interpret its summaries
-- Reduce into `results/{experiment-run-id}/analysis.md`
-- Update the experiment entry in `experiments.json`:
-  - `analysis-path` → `"results/{experiment-run-id}/analysis.md"`
-  - `hypothesis` → first sentence of the Hypothesis section
-  - `suggested-next-focus` → focus from the Suggested Next Focus section
-
-**8. Compute delta**
-
-For each benchmark discovered in step 7:
+For each benchmark present in `results/{experiment-run-id}/summaries/`:
 
 *Throughput:*
 - Experiment: read `results/{experiment-run-id}/jmh-output.txt`. Find the
-  line for this benchmark (match on benchmark short name). Extract the
-  `Score` value (ops/s).
+  line for this benchmark. Extract the `Score` value (ops/s).
 - Baseline: read `results/{baseline-run-id}/jmh-output.txt` if it exists.
-  Extract the same benchmark's score. If the file is absent, set baseline
-  throughput to `null`.
+  Extract the same benchmark's score. If the file is absent, set to `null`.
 - Compute `change-pct` = `(experiment - baseline) / baseline * 100` where
   both values are non-null; otherwise `null`.
 
@@ -174,7 +131,7 @@ Build the `delta` object:
 
 Write the `delta` field to the experiment entry in `results/experiments.json`.
 
-**9. Report**
+**8. Report**
 
 ```
 Experiment Complete
@@ -194,17 +151,17 @@ Analysis: results/{experiment-run-id}/analysis.md
 Hypothesis: {hypothesis}
 Suggested next focus: {suggested-next-focus}
 
-Next: run /sunwell:improve --config {app-path} to propose the next
-change, or /sunwell:profile to start a fresh baseline.
+Next: run /improve --config {app-path} to propose the next
+change, or /profile to start a fresh baseline.
 ```
 
 ---
 
 ### Edge Cases
 
-- No `improvement-status: "implemented"` entry → stop: "No implemented improvement found. Run `/sunwell:improve` first."
+- No `improvement-status: "implemented"` entry → stop: "No implemented improvement found. Run `/improve` first."
 - No prior analyzed run to use as baseline → report delta as all-null; note "no baseline run available"
-- Deploy fails → stop; source change remains in working tree
+- Deploy agent reports failure → stop; source change remains in working tree
 - `jmh-output.txt` absent on baseline run → throughput baseline is `null`; report allocation-rate delta only
 - GC summary absent for a benchmark → allocation rate for that side is `null`
 - Benchmark in experiment but not baseline → include in delta with `null` baseline values; note in report

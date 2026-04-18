@@ -5,7 +5,7 @@ when_to_use: When the user asks to run the full loop, start an autonomous tuning
 argument-hint: "[--config <app-path>] [--target <name>] [--focus <focus>]"
 context: fork
 agent: general-purpose
-allowed-tools: "Agent Bash Read Write Edit"
+allowed-tools: "Agent Read Write Edit"
 ---
 
 # Sunwell Loop
@@ -86,26 +86,36 @@ all subsequent experiment deltas.
 
 **[ITERATION 1] [STAGE 1] Deploy**
 
-Read and follow `.claude/skills/deploy/SKILL.md` in full, passing
-`--config {app-path}` and `--target {target}`.
+Spawn an Agent with this prompt:
+> "Read `.claude/skills/deploy/SKILL.md` and execute it with arguments
+> `--config {app-path} --target {target}`. Report 'Deploy complete' on
+> success or 'Deploy failed: {reason}' on failure."
 
-If deploy fails, stop:
-> "Loop stopped at Deploy. Fix the deploy error and re-invoke `/sunwell:loop`
+If the agent reports failure, stop:
+> "Loop stopped at Deploy. Fix the deploy error and re-invoke `/loop`
 > to resume — the loop will re-enter at Deploy."
 
 **[ITERATION 1] [STAGE 2] Profile + Collect**
 
-Read and follow `.claude/skills/profile/SKILL.md` in full, passing
-`--config {app-path}` and `--focus {focus}`.
+Spawn an Agent with this prompt:
+> "Read `.claude/skills/profile/SKILL.md` and execute it with arguments
+> `--config {app-path} --focus {focus}`. Report 'Profile complete' on
+> success or 'Profile failed: {reason}' on failure."
 
-If profile or collect fails, stop:
+If the agent reports failure, stop:
 > "Loop stopped at Profile. Fix the error and re-invoke to resume — the loop
 > will re-enter at Profile."
 
 **[ITERATION 1] [STAGE 3] Analyze**
 
-Read and follow `.claude/skills/analyze/SKILL.md` in full, passing
-`--config {app-path}`.
+Spawn an Agent with this prompt:
+> "Read `.claude/skills/analyze/SKILL.md` and execute it with arguments
+> `--config {app-path}`. Report 'Analyze complete' on success or
+> 'Analyze failed: {reason}' on failure."
+
+If the agent reports failure, stop:
+> "Loop stopped at Analyze. Fix the error and re-invoke to resume — the loop
+> will re-enter at Analyze."
 
 Advance to `IMPROVE_PROPOSE`.
 
@@ -117,9 +127,13 @@ A previous run collected successfully but analyze did not complete.
 
 **[ITERATION N] [STAGE 3] Analyze — resuming**
 
-Read and follow `.claude/skills/analyze/SKILL.md` in full, passing
-`--config {app-path}` against the most recent run-id (the last entry in
-`experiments.json`).
+Spawn an Agent with this prompt:
+> "Read `.claude/skills/analyze/SKILL.md` and execute it for the most recent
+> run-id in `results/experiments.json` with arguments `--config {app-path}`.
+> Report 'Analyze complete' on success or 'Analyze failed: {reason}' on failure."
+
+If the agent reports failure, stop:
+> "Loop stopped at Analyze. Fix the error and re-invoke to resume."
 
 Advance to `IMPROVE_PROPOSE`.
 
