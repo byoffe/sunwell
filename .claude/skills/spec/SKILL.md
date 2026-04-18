@@ -1,23 +1,24 @@
 ---
 name: spec
-description: Guide the three-phase spec workflow for a new feature. Requirements covers the full vision and persists. Design and tasks are cumulative living documents — each commit appends to them. Compression is optional maintenance, not a post-commit ritual. Claude auto-invokes when planning language is detected; also user-invocable directly.
-when_to_use: When the user asks to plan, design, spec, or start work on a new feature or non-trivial change.
-allowed-tools: "Read Write"
+description: Guides the three-phase spec workflow for a story. Requirements covers the full vision and persists. Design and tasks are cumulative living documents — each commit appends to them. Compression is optional maintenance, not a post-commit ritual.
+when_to_use: When the user asks to plan, design, spec, or start work on a new story or non-trivial change.
+argument-hint: "[requirements|design|tasks]"
+allowed-tools: "Bash(rm spec/*) Edit Glob Read Write"
 ---
 
 # Spec Workflow
 
-You are running the spec workflow. Your job is to guide a feature from
+You are running the spec workflow. Your job is to guide a story from
 idea to approved implementation plan, one artifact at a time.
 
-**Never write code or modify non-spec files during this skill.**
+**During Requirements, Design, and Tasks phases: write spec files only — never implement. Compress and Close may write to code files and CLAUDE.md.**
 
 ## Granularity Model
 
 The three artifacts operate at different granularities and have different
 lifetimes:
 
-- **`requirements.md`** — the **full feature vision**. Every stage, every goal,
+- **`requirements.md`** — the **full story vision**. Every stage, every goal,
   every acceptance criterion. Can be large. Written once and revised as
   understanding evolves. Persists until every acceptance criterion is satisfied.
   This is the anchor for all design decisions.
@@ -28,7 +29,7 @@ lifetimes:
   the full rationale for every decision made so far. Never deleted mid-spec.
 
 - **`tasks.md`** — a **cumulative task history**. Completed tasks are checked
-  off but remain visible. Each increment appends new tasks. The full list shows
+  off but remain visible. Each commit appends new tasks. The full list shows
   what was built, in what order, and what comes next. Never deleted mid-spec.
 
 Compression is an *optional maintenance operation* — triggered when the
@@ -76,16 +77,16 @@ jump to that phase regardless.
 ## Phase 1 — Requirements
 
 **Scope check first:** requirements.md tracks one story — completable in 2–3 days
-of focused work. If the stated feature is larger than that, stop and ask the user
+of focused work. If the stated scope is larger than that, stop and ask the user
 to trim it to a story-sized slice before writing. What doesn't fit becomes the
 next story.
 
-Write `spec/requirements.md`. This document covers the **full feature vision**
+Write `spec/requirements.md`. This document covers the **full story vision**
 — every stage, every goal, every acceptance criterion. It can be long. Do not
 artificially limit scope to what fits in one design/tasks cycle.
 
 ```markdown
-# Requirements: <feature name>
+# Requirements: <story name>
 
 ## Problem
 <What is broken, missing, or inefficient? Why does it matter?
@@ -97,7 +98,7 @@ artificially limit scope to what fits in one design/tasks cycle.
 
 ## Goals
 <Numbered list of capabilities the system must have when done.
- Can be extensive — cover every stage of the feature.>
+ Can be extensive — cover every stage of the story.>
 
 ## Acceptance Criteria
 <Grouped by stage or concern. Each criterion is testable and specific.
@@ -141,18 +142,18 @@ Each commit maps to one atomic, independently reviewable git commit. Size it so
 a reviewer can understand the full change at a glance — if the design implies
 touching more than one logical concern, split the commit.
 
-**If `design.md` already exists**, append a new section for this increment.
+**If `design.md` already exists**, append a new section for this commit.
 Do not overwrite existing content.
 
 **If `design.md` does not exist**, create it.
 
 ```markdown
-# Design: <feature name>
+# Design: <story name>
 
 ## Commit 1 — <scope, e.g. "Configuration + Deploy/Profile">
 
 ### Scope
-<Which acceptance criteria from requirements.md this increment addresses.>
+<Which acceptance criteria from requirements.md this commit addresses.>
 
 ### Approach
 <The chosen technical approach and why. One paragraph.>
@@ -196,7 +197,7 @@ existing ones. Do not remove or renumber completed tasks.
 **If `tasks.md` does not exist**, create it.
 
 ```markdown
-# Tasks: <feature name>
+# Tasks: <story name>
 
 ## Commit 1 — <scope>
 
@@ -228,8 +229,8 @@ Stop. Do not implement.
 
 ## Design Gate (during implementation)
 
-If the user is mid-implementation and surfaces a gap — something the design
-didn't cover — say:
+If a gap is encountered during implementation — something the design didn't
+cover — do not decide silently. Instead, say:
 
 > "Design gap: [describe the unresolved question]. Options: [A] or [B].
 > Should I update spec/design.md before continuing?"
@@ -240,7 +241,7 @@ Wait for direction. Do not pick an answer silently.
 
 ## Commit Complete (bookkeeping)
 
-When all tasks for an increment are checked off in `tasks.md`, before committing:
+When all tasks for a commit are checked off in `tasks.md`, before committing:
 
 1. **Check off tasks in `tasks.md`** — all tasks for the commit should be `[x]`
 2. **Tick acceptance criteria in `requirements.md`** — for each criterion that is
