@@ -1,7 +1,9 @@
 ---
 name: deploy
-description: Read sunwell.yml, build the app JAR via Maven, and deploy it to the named target via SSH/SCP. Verifies the deployment succeeded.
-allowed-tools: "Bash Read"
+description: Builds the app JAR via Maven and deploys it to a named SSH/SCP target configured in sunwell.yml. Verifies the JAR landed and Java is available on the remote host.
+when_to_use: When the user asks to deploy, build, or ship the app to a target host.
+argument-hint: "[--config <app-path>] [target]"
+allowed-tools: "Bash(mvn package) Bash(bash .claude/skills/deploy/deploy-ssh.sh) Read"
 ---
 
 ## Deploy

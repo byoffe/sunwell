@@ -1,6 +1,8 @@
 ---
 name: loop
-description: Run the full Sunwell performance engineering loop — deploy, profile, collect, analyze, propose improvements, and track experiments. Reads sunwell.yml for app and target config. Invoke this to drive an autonomous tuning session.
+description: Orchestrates the full Sunwell loop — deploy, profile, analyze, improve, experiment — resuming from the last known state in experiments.json. Pauses at the Improve gate for developer approval.
+when_to_use: When the user asks to run the full loop, start an autonomous tuning session, or drive all stages end-to-end.
+argument-hint: "[--config <app-path>] [--target <name>] [--focus <focus>]"
 context: fork
 agent: general-purpose
 allowed-tools: "Agent Bash Read Write Edit"

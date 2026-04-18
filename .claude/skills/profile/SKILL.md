@@ -1,7 +1,9 @@
 ---
 name: profile
-description: Read sunwell.yml, resolve focus to profiler flags, SSH into the target, run the JMH benchmark with the appropriate profiler attached, collect the recording, and write an experiments.json entry.
-allowed-tools: "Bash Read Write"
+description: Profiles the app on a configured SSH target using a focus-derived JMH profiler config, collects all JFR recordings locally, and writes an experiments.json entry.
+when_to_use: When the user asks to profile, benchmark, or collect a JFR recording from a target host.
+argument-hint: "[--config <app-path>] [target] [--focus <focus>]"
+allowed-tools: "Bash(date -u) Bash(bash .claude/skills/profile/profile-jfr.sh) Bash(bash .claude/skills/profile/collect-ssh.sh) Read Write"
 ---
 
 ## Profile

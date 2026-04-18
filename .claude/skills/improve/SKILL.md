@@ -1,7 +1,9 @@
 ---
 name: improve
-description: Read analysis.md for the latest run, propose one targeted code change, log the proposal to experiments.json, and wait for developer approval before applying it.
-allowed-tools: "Bash Read Write Edit"
+description: Proposes one targeted code change based on profiling analysis, gates implementation on explicit developer approval, and records the proposal and outcome in experiments.json.
+when_to_use: When the user asks to improve, optimize, or propose a change based on a completed profiling analysis.
+argument-hint: "[--config <app-path>] [run-id]"
+allowed-tools: "Read Write Edit"
 ---
 
 ## Improve

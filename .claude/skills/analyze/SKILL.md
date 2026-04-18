@@ -1,7 +1,9 @@
 ---
 name: analyze
-description: Read JFR recordings from results/<run-id>/, run Java summarization scripts per benchmark and analysis dimension, spawn one subagent per benchmark to interpret findings, reduce into analysis.md, and update experiments.json.
-allowed-tools: "Agent Bash Read Write"
+description: Reduces JFR recordings to per-benchmark summaries via Java scripts, interprets findings with per-benchmark subagents, and writes analysis.md with a hypothesis and suggested next focus.
+when_to_use: When the user asks to analyze a profiling run or generate analysis.md from collected JFR recordings.
+argument-hint: "[--config <app-path>] [run-id]"
+allowed-tools: "Agent Bash(java .claude/skills/analyze/summarize-cpu.java) Bash(java .claude/skills/analyze/summarize-alloc.java) Bash(java .claude/skills/analyze/summarize-gc.java) Read Write"
 ---
 
 ## Analyze

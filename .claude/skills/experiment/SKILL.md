@@ -1,6 +1,8 @@
 ---
 name: experiment
-description: Deploy the current working tree (improvement already applied by /improve), profile with the suggested focus, analyze, compute delta vs. the baseline run, and record everything in a new experiments.json entry.
+description: Deploys an approved code change, runs a full profile + analyze cycle, computes the throughput and allocation-rate delta vs. the baseline run, and records the result in experiments.json.
+when_to_use: When the user asks to run an experiment, measure a delta, or validate an approved improvement against a baseline.
+argument-hint: "[--config <app-path>] [run-id]"
 allowed-tools: "Agent Bash Read Write"
 ---
 
