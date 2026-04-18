@@ -123,13 +123,13 @@ gate. The loop is invariant. What varies is configuration.
 ### Deploy
 - [x] `/sunwell:deploy [target]` reads config from `sunwell.yml`, defaults to
       `default-target` when no target is named
-- [x] Deploy verifies JAR landed and Java is available on the remote host
+- [x] Given a deploy completes, when verification runs, then the JAR exists at remote-path and `java -version` succeeds on the target host
 - [x] Deploy script is transport-only — no app or target config embedded in it
 
 ### Profile
 - [x] `/sunwell:profile [target] [--focus <focus>]` SSHs in, translates focus
       to profiler/flags/duration, runs benchmark JAR, waits for completion
-- [x] Focus defaults to `default-focus` in `sunwell.yml` when not specified
+- [x] Given sunwell.yml has `default-focus` set, when `/sunwell:profile` is invoked without `--focus`, then the focus from `default-focus` is used
 - [x] JFR profiling uses JMH's `-prof jfr` option; JMH manages recording
       lifecycle per fork (measurement-only, no warmup data), producing one clean
       recording per benchmark in a per-benchmark subdirectory
@@ -161,8 +161,8 @@ gate. The loop is invariant. What varies is configuration.
 ### Improve
 - [ ] `/sunwell:improve` proposes one targeted change based on `analysis.md`
 - [ ] Proposal includes: code change, rationale, and suggested focus for next run
-- [ ] Proposal is logged to `experiments.json` before any code is modified
-- [ ] Developer must explicitly approve change and confirm (or redirect) next focus
+- [ ] Given `/sunwell:improve` formulates a proposal, when proposal.md is written and experiments.json updated with `improvement-status: "proposed"`, then no source file has been modified yet
+- [ ] Given a proposal is presented, when the developer does not type `approve`, then no source files are modified
 
 ### Experiment
 - [ ] `/sunwell:experiment` applies the approved change and runs the full loop
@@ -174,8 +174,7 @@ gate. The loop is invariant. What varies is configuration.
 ### Loop
 - [ ] `/sunwell:loop` runs: baseline (deploy → profile → collect → analyze),
       then iterates (improve → [gate] → experiment) until termination
-- [ ] Developer gate: loop pauses after each Improve proposal; resumes on
-      explicit `approve`; on `reject`, loop stops and preserves state
+- [ ] Given the loop reaches an Improve proposal, when the developer has not typed `approve`, then the loop is paused and no further stages execute; on `reject`, loop stops and preserves state in experiments.json
 - [ ] Termination condition A (SUCCESS): ALL benchmarks meet
       `loop.improvement-threshold-pct` (default 10%) in allocation rate or
       throughput — loop reports SUCCESS and stops. A single benchmark improving
@@ -185,8 +184,7 @@ gate. The loop is invariant. What varies is configuration.
       all benchmarks — loop reports STALL and stops
 - [ ] Termination thresholds configurable in `sunwell.yml` under a `loop:`
       block; defaults apply if the block is absent
-- [ ] Loop detects interrupted state from `experiments.json` and resumes at
-      the correct stage without re-running completed stages
+- [ ] Given experiments.json records a partial run state, when `/sunwell:loop` is invoked, then it resumes from the interrupted stage without re-running completed stages
 - [ ] Progress reported per stage: `[ITERATION N] [STAGE M] <name> — <status>`
 - [ ] The project-level skill name does not conflict with the built-in loop
       scheduler; the sunwell loop is invokable unambiguously in a fresh session
@@ -195,9 +193,8 @@ gate. The loop is invariant. What varies is configuration.
 - [ ] `/sunwell:clean [--config <app-path>]` resets the app to a clean state:
       reads `experiments.json` for all `files-changed` entries and reverts each
       file via `git restore`, then deletes `{app-path}/sunwell-results/`
-- [ ] Presents a confirmation summary before taking any destructive action:
-      files to revert, run directories to delete
-- [ ] Proceeds only on explicit developer confirmation
+- [ ] Given `/sunwell:clean` is invoked, when the confirmation summary is presented, then no files have been reverted and no directories deleted yet
+- [ ] Given the confirmation summary is presented, when the developer does not type `confirm`, then no files are reverted and no directories are deleted
 - [ ] Reports what was reverted and deleted; leaves working tree clean
 
 ## JDK Compatibility

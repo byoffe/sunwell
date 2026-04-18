@@ -1,6 +1,6 @@
 # Design: Sunwell — Full Loop
 
-## Increment 1 — Configuration + Deploy + Profile + Collect
+## Commit 1 — Configuration + Deploy + Profile + Collect
 
 ### Scope
 
@@ -10,7 +10,7 @@ Addresses these requirements acceptance criteria:
 - All **Profile** criteria
 - All **Collect** criteria
 
-Deferred to later increments: Analyze, Improve, Experiment, Loop orchestration.
+Deferred to later commits: Analyze, Improve, Experiment, Loop orchestration.
 
 ---
 
@@ -174,7 +174,7 @@ Experiment).
 
 ---
 
-### Deferred to Later Increments
+### Deferred to Later Commits
 
 - Analyze, Improve, Experiment, and full Loop orchestration
 - async-profiler delivery and the `cpu`, `memory`, `lock` focus paths
@@ -183,7 +183,7 @@ Experiment).
 
 ---
 
-## Increment 2 — JFR Clean Recording via `-prof jfr`
+## Commit 2 — JFR Clean Recording via `-prof jfr`
 
 ### Scope
 
@@ -243,13 +243,13 @@ profiling value.
 - If no `.jfr` files are found after profiling, collect fails with the remote path searched
 - JMH output dir is benchmark-class-qualified; collect does not need to predict subdirectory names — `scp -r` copies all of them
 
-### Deferred
+### Deferred to Later Commits
 
 - All other stages
 
 ---
 
-## Increment 3 — Analyze
+## Commit 3 — Analyze
 
 ### Scope
 
@@ -430,14 +430,14 @@ No thread/package hint — GC events are process-wide.
 - Subagent returns no findings (empty summaries) → parent notes gap in analysis.md, does not fabricate signal
 - `experiments.json` missing or has no entry for `run-id` → skill fails with instruction to run profile first
 
-### Deferred
+### Deferred to Later Commits
 
 - async-profiler focuses (`cpu`, `memory`, `lock`) — scripts accept the same interface but these focuses aren't executable until async-profiler is delivered
 - Improve, Experiment, Loop orchestration
 
 ---
 
-## Increment 4 — Improve
+## Commit 4 — Improve
 
 ### Scope
 
@@ -586,7 +586,7 @@ On `reject`:
 - Diff application fails (file changed since analysis) → report conflict, preserve `proposal.md`, leave status `"approved"`; developer resolves manually
 - Developer provides `approve --focus <unknown>` → validate against known focus values; list valid values if unknown
 
-### Deferred
+### Deferred to Later Commits
 
 - Experiment stage (apply change → run full loop → record delta)
 - Loop orchestration that calls Improve automatically after Analyze
@@ -594,7 +594,7 @@ On `reject`:
 
 ---
 
-## Increment 5 — Experiment
+## Commit 5 — Experiment
 
 ### Scope
 
@@ -636,7 +636,7 @@ GC summary files is always available and makes a meaningful proxy.
 | Allocation rate delta | From GC summary files written by analyze | Always available; good proxy when throughput history is missing |
 | experiments.json linking | `parent-run-id` field on experiment entries | Identifies the baseline being compared against; enables chain traversal in Loop |
 | `delta` field format | Object with per-benchmark throughput and allocation-rate; `null` where unavailable | Handles the missing-baseline-throughput case gracefully |
-| Termination conditions | Deferred to Loop (Increment 6) | Requires multi-run chain state; Experiment only knows one iteration |
+| Termination conditions | Deferred to Loop (Commit 6) | Requires multi-run chain state; Experiment only knows one iteration |
 | focus for experiment run | `suggested-next-focus` from the parent run's experiments.json entry | Analyze already made this judgment; Experiment operationalizes it |
 
 ### JMH Output Capture
@@ -778,7 +778,7 @@ Append a new entry for this experiment run:
 
 **6. Analyze**
 
-Run the full analyze skill playbook inline — same steps as Increment 3.
+Run the full analyze skill playbook inline — same steps as Commit 3.
 Write `results/<new-run-id>/analysis.md` and update the new entry's
 `analysis-path` in `experiments.json`.
 
@@ -834,15 +834,15 @@ Next: run /sunwell:improve to propose the next change, or
 - GC summary absent for a benchmark → set allocation-rate baseline or experiment to `null` for that benchmark
 - Benchmark present in experiment but not baseline (or vice versa) → include in delta with `null` for the missing side; note in report
 
-### Deferred
+### Deferred to Later Commits
 
-- Termination conditions: threshold check and three-consecutive-iterations check (Loop, Increment 6)
+- Termination conditions: threshold check and three-consecutive-iterations check (Loop, Commit 6)
 - Loop orchestration that chains Experiment automatically after Improve approval
 - async-profiler focuses
 
 ---
 
-## Increment 6 — Loop
+## Commit 6 — Loop
 
 ### Scope
 
@@ -863,7 +863,7 @@ conditions are not met, it loops back to Improve, reading the most recent
 `analysis.md` (from the experiment run) as the starting point for the next
 proposal.
 
-**The experiment run already contains a full analyze stage** (Increment 5
+**The experiment run already contains a full analyze stage** (Commit 5
 design). This means each experiment entry has its own `analysis.md`. The loop
 never re-runs a baseline profile mid-iteration — it just uses the latest
 analysis as input for the next Improve.
@@ -875,7 +875,7 @@ analysis as input for the next Improve.
 | Stage execution model | Loop reads sub-skill SKILL.md files and follows them inline | DRY; sub-skills stay authoritative; loop is pure orchestration, not a copy of their logic |
 | Developer gate | Inherit Improve's Phase 1 STOP instruction | Improve already defines the gate; loop just follows the playbook; no separate gate mechanism |
 | On reject | Stop loop; preserve state | No automatic alternative — rejection means the developer wants to take over; they can re-invoke `/sunwell:loop` or `/sunwell:improve` manually |
-| Primary termination metric | `allocation-rate-mb-s` change-pct (primary); `throughput-ops-s` change-pct (secondary) | Allocation rate is always populated after Increment 5; throughput may be null for older baselines |
+| Primary termination metric | `allocation-rate-mb-s` change-pct (primary); `throughput-ops-s` change-pct (secondary) | Allocation rate is always populated after Commit 5; throughput may be null for older baselines |
 | Threshold: success condition | ANY benchmark improves by ≥ threshold | A single hot benchmark improving is a win; AND semantics would make it too hard to stop |
 | Threshold: stall condition | ALL benchmarks fail to improve for N consecutive iterations | Stall requires consensus — if one benchmark is still moving, the loop may still be productive |
 | Termination config location | `loop:` block in `sunwell.yml`; defaults if absent | Consistent with `profile.overrides` pattern; app-specific thresholds without skill changes |
@@ -1033,7 +1033,7 @@ experiment entry. Compute it by reading the `delta` chain from experiments.json.
   available entries; report "only N of {stall-iterations} iterations available;
   stall check: {pass|fail}"
 
-### Deferred
+### Deferred to Later Commits
 
 - async-profiler focuses (`cpu`, `memory`, `lock`)
 - Cumulative delta across more than one baseline (the loop uses a single
@@ -1043,7 +1043,7 @@ experiment entry. Compute it by reading the `delta` chain from experiments.json.
 
 ---
 
-## Increment 7 — Results Path, SUCCESS Condition, Clean Skill, Loop Rename
+## Commit 7 — Results Path, SUCCESS Condition, Clean Skill, Loop Rename
 
 ### Scope
 
@@ -1178,7 +1178,7 @@ On cancel: "Clean cancelled. Nothing was changed."
   → clean reverts the improvement; on re-invoke, loop resumes at IMPROVE_PROPOSE
   and regenerates the proposal from the (now-restored) baseline analysis
 
-### Deferred
+### Deferred to Later Commits
 
 - `--dry-run` flag for clean (preview without executing)
 - Selective clean (revert only specific runs, not all)

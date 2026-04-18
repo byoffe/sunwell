@@ -1,6 +1,6 @@
 # Tasks: Sunwell — Full Loop
 
-## Increment 1 — Configuration + Deploy + Profile + Collect
+## Commit 1 — Configuration + Deploy + Profile + Collect
 
 - [x] 1. Create `examples/toy-app/sunwell.yml` with app config, `local-docker`
          target, and `default-focus: baseline`
@@ -29,7 +29,7 @@
 - [x] 10. Run `git status` — confirm no untracked files; `git add` or
           `.gitignore` anything that floats
 
-## Increment 2 — JFR Per-Fork Recording Fix
+## Commit 2 — JFR Per-Fork Recording Fix
 
 - [x] 1. SSH into the Docker target and run a minimal JMH benchmark with
          `-prof jfr` to confirm where JMH writes per-fork JFR files; document
@@ -44,7 +44,7 @@
          in `results/<run-id>/`
 - [x] 6. Run `git status` — confirm no untracked files
 
-## Increment 3 — Analyze
+## Commit 3 — Analyze
 
 - [x] 1. Create `.claude/skills/analyze/summarize-cpu.java` — reads
          `jdk.ExecutionSample` events via `jdk.jfr.consumer.RecordingFile`;
@@ -86,7 +86,7 @@
 - [x] 9. `git status` — confirm no untracked files; `git add` or `.gitignore`
          anything that floats
 
-## Increment 4 — Improve
+## Commit 4 — Improve
 
 - [x] 1. Update `.claude/skills/profile/SKILL.md` step 6 (experiments.json entry):
          add `"proposal-path": null` and `"improvement-status": null` to the JSON
@@ -111,7 +111,7 @@
          populated
 - [x] 4. `git status` — confirm no untracked files
 
-## Increment 5 — Experiment
+## Commit 5 — Experiment
 
 - [x] 1. Update `profile-jfr.sh`: pipe JMH stdout through
          `tee $REMOTE_DIR/jmh-output.txt` so throughput results are captured
@@ -138,9 +138,9 @@
          for `CpuHogBenchmark.deduplicateTags`
 - [x] 5. `git status` — confirm no untracked files
 
-## Increment 6 — Loop
+## Commit 6 — Loop
 
-- [x] 1. Mark Increment 4 and 5 tasks `[x]` in `spec/tasks.md` (done)
+- [x] 1. Mark Commit 4 and 5 tasks `[x]` in `spec/tasks.md` (done)
 - [x] 2. Add optional `loop:` block (commented out, with defaults documented)
          to `examples/toy-app/sunwell.yml`
 - [x] 3. Rewrite `.claude/skills/loop/SKILL.md` — full state-machine orchestration
@@ -148,7 +148,7 @@
 - [x] 4. Test `/sunwell:loop --config examples/toy-app` end-to-end
 - [x] 5. `git status` — confirm no untracked files
 
-## Increment 7 — Results Path, SUCCESS Condition, Clean Skill, Loop Rename
+## Commit 7 — Results Path, SUCCESS Condition, Clean Skill, Loop Rename
 
 - [ ] 1. `git mv .claude/skills/loop .claude/skills/run` — rename skill directory
 - [ ] 2. Update `.claude/skills/run/SKILL.md`:

@@ -1,6 +1,6 @@
 ---
 name: spec
-description: Guide the three-phase spec workflow for a new feature. Requirements covers the full vision and persists. Design and tasks are cumulative living documents — each increment appends to them. Compression is optional maintenance, not a post-increment ritual. Claude auto-invokes when planning language is detected; also user-invocable directly.
+description: Guide the three-phase spec workflow for a new feature. Requirements covers the full vision and persists. Design and tasks are cumulative living documents — each commit appends to them. Compression is optional maintenance, not a post-commit ritual. Claude auto-invokes when planning language is detected; also user-invocable directly.
 when_to_use: When the user asks to plan, design, spec, or start work on a new feature or non-trivial change.
 allowed-tools: "Read Write"
 ---
@@ -23,7 +23,7 @@ lifetimes:
   This is the anchor for all design decisions.
 
 - **`design.md`** — a **cumulative, living design record**. Starts with the
-  first increment's decisions. Each subsequent increment *appends* a new
+  first commit's decisions. Each subsequent commit *appends* a new
   section — it does not replace the previous one. Grows over time. Contains
   the full rationale for every decision made so far. Never deleted mid-spec.
 
@@ -42,10 +42,19 @@ only when all requirements are satisfied.
 `spec/feedback.md` is a free-form document for capturing questions, concerns,
 and observations on work in progress — including work already implemented but
 not yet reviewed. It is not a phase artifact; it can exist at any time alongside
-requirements/design/tasks. When the user says "capture this feedback" or
-"note this", append it to `spec/feedback.md`. At compress-and-close, process
-any open items into requirements changes, design revisions, or task additions,
-then delete the file.
+requirements/design/tasks.
+
+**Capturing:** When the user says "capture this feedback", "note this", or similar,
+append it to `spec/feedback.md` and immediately acknowledge out loud: "Noted — I'll
+pick this up before the next phase."
+
+**Processing:** At the start of each phase transition (before writing design.md,
+before writing tasks.md, before implementing), check whether `spec/feedback.md`
+exists. If it does, read it and fold open items into the appropriate artifact
+— requirements changes, design revisions, or task additions — before proceeding.
+Report what was folded in and clear the processed items from the file.
+
+At close, process any remaining items, then delete the file.
 
 ---
 
@@ -56,7 +65,7 @@ Check what already exists in `spec/`:
 - No files → start with **Phase 1 (Requirements)**
 - `requirements.md` exists, no `design.md` → start with **Phase 2 (Design)**
 - `design.md` exists, no `tasks.md` → start with **Phase 3 (Tasks)**
-- `tasks.md` exists → in progress; ask which increment is next, or wait for
+- `tasks.md` exists → in progress; ask which commit is next, or wait for
   "compress" or "close"
 
 If `$ARGUMENTS` names a phase explicitly (`requirements`, `design`, or `tasks`),
@@ -66,6 +75,11 @@ jump to that phase regardless.
 
 ## Phase 1 — Requirements
 
+**Scope check first:** requirements.md tracks one story — completable in 2–3 days
+of focused work. If the stated feature is larger than that, stop and ask the user
+to trim it to a story-sized slice before writing. What doesn't fit becomes the
+next story.
+
 Write `spec/requirements.md`. This document covers the **full feature vision**
 — every stage, every goal, every acceptance criterion. It can be long. Do not
 artificially limit scope to what fits in one design/tasks cycle.
@@ -74,7 +88,8 @@ artificially limit scope to what fits in one design/tasks cycle.
 # Requirements: <feature name>
 
 ## Problem
-<What is broken, missing, or inefficient? Why does it matter?>
+<What is broken, missing, or inefficient? Why does it matter?
+ Why solve this now — what is the cost of not doing it?>
 
 ## Vision
 <The end state in plain language — what the system does when fully built.
@@ -86,11 +101,23 @@ artificially limit scope to what fits in one design/tasks cycle.
 
 ## Acceptance Criteria
 <Grouped by stage or concern. Each criterion is testable and specific.
- Check boxes remain open until that criterion is actually satisfied.>
+ Check boxes remain open until that criterion is actually satisfied.
+
+ Two formats — pick the right one per criterion:
+
+ Scenario format for behavioral criteria (user action → observable outcome):
+   - [ ] Given <precondition>, when <action>, then <observable result>
+
+ Plain checkbox for state/existence checks:
+   - [ ] <thing exists / is present / is configured correctly>
+
+ If you're unsure which to use: if a human could observe the outcome by running
+ something, use scenario format. If it's a structural fact about the system, use
+ plain checkbox.>
 
 ### <Stage or Concern>
-- [ ] <Testable, specific criterion>
-- [ ] <Testable, specific criterion>
+- [ ] Given <precondition>, when <action>, then <observable result>
+- [ ] <Structural fact about the system>
 
 ## Out of Scope
 <What this spec explicitly does not address — be specific.>
@@ -98,7 +125,8 @@ artificially limit scope to what fits in one design/tasks cycle.
 
 After writing, tell the user:
 - What you wrote and why each section matters
-- **"Review spec/requirements.md. When it looks right, say 'requirements look good' and I'll write the design."**
+- One explicit question: **"Before approving: is this the right problem to solve? What's the cost of not doing it?"**
+- **"When you're satisfied, say 'requirements look good' and I'll write the design."**
 
 Stop. Do not write design.md.
 
@@ -106,8 +134,12 @@ Stop. Do not write design.md.
 
 ## Phase 2 — Design
 
-Read `spec/requirements.md` first. Identify which increment is ready to design
+Read `spec/requirements.md` first. Identify which commit is ready to design
 — the next well-understood slice. Do not design the entire requirements at once.
+
+Each commit maps to one atomic, independently reviewable git commit. Size it so
+a reviewer can understand the full change at a glance — if the design implies
+touching more than one logical concern, split the commit.
 
 **If `design.md` already exists**, append a new section for this increment.
 Do not overwrite existing content.
@@ -117,7 +149,7 @@ Do not overwrite existing content.
 ```markdown
 # Design: <feature name>
 
-## Increment 1 — <scope, e.g. "Configuration + Deploy/Profile">
+## Commit 1 — <scope, e.g. "Configuration + Deploy/Profile">
 
 ### Scope
 <Which acceptance criteria from requirements.md this increment addresses.>
@@ -142,8 +174,8 @@ Do not overwrite existing content.
 <Requirements criteria explicitly not addressed here.>
 ```
 
-Each subsequent increment appends another `## Increment N` section below the
-previous ones. Completed increment sections are never removed — they are the
+Each subsequent commit appends another `## Commit N` section below the
+previous ones. Completed commit sections are never removed — they are the
 permanent record of why the system is shaped the way it is.
 
 After writing, tell the user:
@@ -158,7 +190,7 @@ Stop. Do not write tasks.md.
 
 Read `spec/requirements.md` and `spec/design.md` first.
 
-**If `tasks.md` already exists**, append new tasks for this increment below the
+**If `tasks.md` already exists**, append new tasks for this commit below the
 existing ones. Do not remove or renumber completed tasks.
 
 **If `tasks.md` does not exist**, create it.
@@ -166,12 +198,12 @@ existing ones. Do not remove or renumber completed tasks.
 ```markdown
 # Tasks: <feature name>
 
-## Increment 1 — <scope>
+## Commit 1 — <scope>
 
 - [x] 1. <Completed task>
 - [ ] 2. <Pending task>
 
-## Increment 2 — <scope>
+## Commit 2 — <scope>
 
 - [ ] 3. <Next concrete action>
 - [ ] 4. ...
@@ -206,11 +238,11 @@ Wait for direction. Do not pick an answer silently.
 
 ---
 
-## Increment Complete (bookkeeping)
+## Commit Complete (bookkeeping)
 
 When all tasks for an increment are checked off in `tasks.md`, before committing:
 
-1. **Check off tasks in `tasks.md`** — all tasks for the increment should be `[x]`
+1. **Check off tasks in `tasks.md`** — all tasks for the commit should be `[x]`
 2. **Tick acceptance criteria in `requirements.md`** — for each criterion that is
    now satisfied, change `[ ]` to `[x]`. Only tick criteria that are actually
    met by working, committed code — not "close enough" or "mostly done".
@@ -227,8 +259,8 @@ If the checkboxes don't reflect reality, the spec is lying.
 When `design.md` or `tasks.md` becomes unwieldy — too large to read as a
 coherent document — compress it:
 
-1. Read `spec/design.md` and the implemented code for completed increments
-2. Identify decisions in completed increment sections that are non-obvious
+1. Read `spec/design.md` and the implemented code for completed commits
+2. Identify decisions in completed commit sections that are non-obvious
    from the code alone
 3. Memorialize those decisions:
    - Language-appropriate inline documentation — architectural rationale,
@@ -237,14 +269,14 @@ coherent document — compress it:
      — project-wide conventions that emerged from those increments
    - Git commit body — the "why this over X" narrative
 4. Write those additions (to code files, not spec files)
-5. Collapse completed increment sections into a brief summary block:
+5. Collapse completed commit sections into a brief summary block:
    ```markdown
-   ## Increments 1–N (summarized — decisions memorialized in code/CLAUDE.md)
+   ## Commits 1–N (summarized — decisions memorialized in code/CLAUDE.md)
    <One paragraph: what was built and the key architectural choices made.>
    ```
-6. In `tasks.md`, collapse completed increment task lists similarly
-7. Report: "Compressed increments 1–N. [M] decisions memorialized in
-   [locations]. Active increment [N+1] remains intact."
+6. In `tasks.md`, collapse completed commit task lists similarly
+7. Report: "Compressed commits 1–N. [M] decisions memorialized in
+   [locations]. Active commit [N+1] remains intact."
 
 **Compress does not delete any spec file. It only condenses completed history.**
 
