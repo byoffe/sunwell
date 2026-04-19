@@ -23,7 +23,7 @@ findings in this document before committing.
 
 | Decision | Choice | Rationale |
 |---|---|---|
-| async-profiler version | 3.0 | Latest stable at time of writing; JFR output format is mature in 3.x |
+| async-profiler version | 4.3 | Latest stable at time of writing; JFR output format is mature in 4.x |
 | Install path | `/opt/async-profiler/` | Consistent with conventions for optional tooling; matches the probe path in the planned detection logic |
 | Install method | `curl` + tar in Dockerfile `RUN` layer | No package manager entry for async-profiler; GitHub releases tarball is the canonical distribution |
 | Spike execution | Manual SSH commands, not via `/profile` skill | The spike must test the flag syntax before the skill encodes it; using the skill would assume the answer |
@@ -50,8 +50,8 @@ only, not persisted into the image. Both travel as a pair; upgrading async-profi
 means changing exactly these two lines:
 
 ```dockerfile
-ARG ASYNC_PROFILER_VERSION=3.0
-ARG ASYNC_PROFILER_SHA256=<sha256-from-releases-page>
+ARG ASYNC_PROFILER_VERSION=4.3
+ARG ASYNC_PROFILER_SHA256=69a16462c34c06ff55618f41653cffad1f8946822d30842512a3e0e774841c06
 ```
 
 Then, in a single subsequent `RUN` layer, download, verify, and extract using
@@ -62,7 +62,7 @@ RUN curl -fL "https://github.com/async-profiler/async-profiler/releases/download
       -o /tmp/async-profiler.tar.gz && \
     echo "${ASYNC_PROFILER_SHA256}  /tmp/async-profiler.tar.gz" | sha256sum -c - && \
     tar xz -C /opt -f /tmp/async-profiler.tar.gz && \
-    mv /opt/async-profiler-${ASYNC_PROFILER_VERSION}-linux-x64 /opt/async-profiler && \
+    mv "/opt/async-profiler-${ASYNC_PROFILER_VERSION}-linux-x64" /opt/async-profiler && \
     rm /tmp/async-profiler.tar.gz
 ```
 
@@ -153,23 +153,40 @@ Also test `event=alloc` to confirm the alloc path.
 
 #### Spike A — Event Types
 
-*(To be recorded after running the spike)*
-
-- **cpu profiling event types:**
-- **alloc profiling event types:**
-- **summarize-cpu.java result:** compatible / needs update
-- **summarize-alloc.java result:** compatible / needs update
-- **Notes:**
+- **cpu profiling event types:** `jdk.ExecutionSample` (plus standard JVM
+  housekeeping events). Same event type name as native JFR profiling.
+- **alloc profiling event types:** `jdk.ObjectAllocationInNewTLAB` (plus
+  standard housekeeping). Different from native JFR profiling which uses
+  `jdk.ObjectAllocationSample`.
+- **summarize-cpu.java result:** compatible as-is. Reads `jdk.ExecutionSample`,
+  which async-profiler also emits.
+- **summarize-alloc.java result:** NOT compatible. Script filters on
+  `jdk.ObjectAllocationSample` (line 52) and reads the `weight` field.
+  async-profiler emits `jdk.ObjectAllocationInNewTLAB` with an `allocationSize`
+  field instead. Script produces empty output against async-profiler recordings.
+- **Fix required in Commit 3:** update `summarize-alloc.java` to accept both
+  `jdk.ObjectAllocationSample` (weight: `weight` field) and
+  `jdk.ObjectAllocationInNewTLAB` (weight: `allocationSize` field).
+  `jdk.ObjectAllocationOutsideTLAB` should also be handled for completeness
+  (same `allocationSize` field).
 
 #### Spike B — JMH Flag Syntax
 
-*(To be recorded after running the spike)*
-
 - **Confirmed flag string (cpu):**
+  `-prof "async:libPath=/opt/async-profiler/lib/libasyncProfiler.so;event=cpu;output=jfr;dir=/tmp/<run-id>"`
 - **Confirmed flag string (alloc):**
-- **Recording path structure:**
-- **Matches collect-ssh.sh expectation:** yes / no / adjustment needed
-- **Notes:**
+  `-prof "async:libPath=/opt/async-profiler/lib/libasyncProfiler.so;event=alloc;output=jfr;dir=/tmp/<run-id>"`
+- **Recording path structure:** `<dir>/<benchmark-fqn>-<mode>/jfr-{event}.jfr`
+  e.g. `.../CpuHogBenchmark.deduplicateTags-Throughput/jfr-cpu.jfr` and
+  `.../MemoryHogBenchmark.buildReport-Throughput/jfr-alloc.jfr`
+- **Matches collect-ssh.sh expectation:** Partially. The directory structure
+  is the same, but the filename is `jfr-{event}.jfr` rather than `profile.jfr`.
+  collect-ssh.sh copies the whole directory tree (no filename filter), so
+  collection works fine. The analyze skill's recording discovery glob must
+  change from `**/profile.jfr` to `**/*.jfr` to find async-profiler recordings.
+- **Notes:** The `-prof jfr` and `-prof async` flags are mutually exclusive
+  per benchmark run — the profile skill selects one and constructs the flag
+  accordingly. No conflict.
 
 ### Edge Cases and Failure Modes
 
