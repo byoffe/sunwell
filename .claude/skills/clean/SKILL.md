@@ -3,7 +3,7 @@ name: clean
 description: Resets the app to a clean state by reverting all experiment-changed source files via git restore and deleting the sunwell-results directory. Requires explicit confirmation before any destructive action.
 when_to_use: When the user asks to clean up, reset, or undo Sunwell experiment changes for an app.
 argument-hint: "[--config <app-path>]"
-allowed-tools: "Bash(git restore *) Bash(rm -rf *) Read"
+allowed-tools: "Bash(git restore *) Read"
 ---
 
 ## Clean
@@ -59,21 +59,14 @@ Type 'confirm' to proceed, anything else to cancel.
 
 **4. On confirm**
 
-For each file in the collected set:
+For each file in the collected set, use the Bash tool to run `git restore <file>`
+with the actual resolved file path. Report each result inline (success or failure).
+If `git restore` fails for a file (not tracked by git, file does not exist, etc.),
+report the failure and continue — do not abort.
 
-```!
-git restore {file}
-```
-
-Report each result inline (success or failure). If `git restore` fails for
-a file (not tracked by git, file does not exist, etc.), report the failure
-and continue with the remaining files — do not abort.
-
-Then delete the results directory:
-
-```!
-rm -rf {results-dir}
-```
+Then delete the results directory using the Bash tool with the exact resolved path
+(e.g. `rm -rf examples/toy-app/sunwell-results`). Do not use template placeholders
+in the command — substitute the actual path before calling Bash.
 
 **5. Report**
 
