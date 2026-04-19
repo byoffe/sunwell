@@ -11,6 +11,11 @@
 
 set -euo pipefail
 
+if [ $# -ne 6 ]; then
+  echo "Usage: $(basename "$0") <host> <port> <user> <key> <remote-dir> <local-dir>" >&2
+  exit 1
+fi
+
 HOST="$1"
 PORT="$2"
 USER="$3"
@@ -18,21 +23,26 @@ KEY="$4"
 REMOTE_DIR="$5"
 LOCAL_DIR="$6"
 
-SCP_OPTS="-i $KEY -P $PORT -o StrictHostKeyChecking=no -o BatchMode=yes"
-SSH_OPTS="-i $KEY -p $PORT -o StrictHostKeyChecking=no -o BatchMode=yes"
+# StrictHostKeyChecking=no + UserKnownHostsFile=/dev/null: intentional for ephemeral
+# Docker targets where the container host key changes on rebuild.
+SSH_OPTS=(-i "$KEY" -p "$PORT" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes)
+SCP_OPTS=(-i "$KEY" -P "$PORT" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes)
+
+# printf %q escapes values for safe interpolation into remote shell commands.
+REMOTE_DIR_Q=$(printf '%q' "$REMOTE_DIR")
 
 mkdir -p "$LOCAL_DIR"
 
 echo "==> Verifying JFR recordings at $USER@$HOST:$REMOTE_DIR..."
-JFR_COUNT=$(ssh $SSH_OPTS "$USER@$HOST" "find $REMOTE_DIR -name '*.jfr' 2>/dev/null | wc -l")
+JFR_COUNT=$(ssh "${SSH_OPTS[@]}" "$USER@$HOST" "find $REMOTE_DIR_Q -name '*.jfr' 2>/dev/null | wc -l" | xargs)
 if [ "$JFR_COUNT" -eq 0 ]; then
-  echo "ERROR: No .jfr files found in $HOST:$REMOTE_DIR"
+  echo "ERROR: No .jfr files found in $HOST:$REMOTE_DIR" >&2
   exit 1
 fi
 echo "    Found $JFR_COUNT recording(s)"
 
 echo "==> Collecting recordings to $LOCAL_DIR..."
-scp -r $SCP_OPTS "$USER@$HOST:$REMOTE_DIR/." "$LOCAL_DIR/"
+scp -r "${SCP_OPTS[@]}" "$USER@$HOST:$REMOTE_DIR/." "$LOCAL_DIR/"
 
 JFR_FILES=$(find "$LOCAL_DIR" -name "*.jfr")
 echo ""
