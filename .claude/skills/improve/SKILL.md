@@ -117,7 +117,7 @@ Read `{results-dir}/experiments.json`. Find the entry for this `run-id`. Set:
 - `proposal-path` → `"{results-dir}/{run-id}/proposal.md"`
 - `improvement-status` → `"proposed"`
 
-Write the updated JSON back.
+Write the updated JSON back using the Write tool — do not use Bash or a heredoc.
 
 **7. Present and stop**
 
@@ -141,7 +141,7 @@ Resume here when the developer responds.
 **On `approve` or `approve --focus <override>`:**
 
 1. Read `{results-dir}/experiments.json`. Find the entry for this `run-id`. Set
-   `improvement-status` → `"approved"`. Write back.
+   `improvement-status` → `"approved"`. Write back using the Write tool.
 
 2. Read `{results-dir}/{run-id}/proposal.md`. Extract the diff from the **Diff**
    section.
@@ -158,7 +158,7 @@ Resume here when the developer responds.
    - `improvement-status` → `"implemented"`
    - `suggested-next-focus` → the override if provided, otherwise leave as-is
 
-   Write back.
+   Write back using the Write tool — do not use Bash or a heredoc.
 
 6. Report:
    - Files changed and lines modified
@@ -169,7 +169,7 @@ Resume here when the developer responds.
 **On `reject`:**
 
 1. Read `{results-dir}/experiments.json`. Find the entry for this `run-id`. Set
-   `improvement-status` → `"rejected"`. Write back.
+   `improvement-status` → `"rejected"`. Write back using the Write tool.
 
 2. Report:
    > "Proposal rejected. Run `/improve` again to generate an alternative."

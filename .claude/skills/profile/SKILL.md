@@ -116,7 +116,8 @@ Append this entry:
 }
 ```
 
-Write the updated JSON back to `{results-dir}/experiments.json`.
+Write the updated JSON back to `{results-dir}/experiments.json` using the
+Write tool — do not use Bash or a heredoc.
 
 **7. Report**
 

@@ -149,7 +149,7 @@ Read `{results-dir}/experiments.json`. Find the entry for this `run-id`. Set:
 - `suggested-next-focus` → the focus name from the Suggested Next Focus section
 - `hypothesis` → first sentence of the Hypothesis section
 
-Write the updated JSON back.
+Write the updated JSON back using the Write tool — do not use Bash or a heredoc.
 
 **8. Report**
 

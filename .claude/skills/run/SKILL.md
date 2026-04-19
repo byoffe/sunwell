@@ -161,7 +161,7 @@ Developer responds by re-invoking `/run approve` or `/run reject`.
 ## IMPROVE_REJECT State
 
 Read `{results-dir}/experiments.json`. Find the last entry. Set
-`improvement-status` → `"rejected"`. Write back.
+`improvement-status` → `"rejected"`. Write back using the Write tool.
 
 Report:
 > "Loop stopped. Last proposal rejected. Re-invoke `/run` to generate an
@@ -179,7 +179,7 @@ Stop.
 Do not delegate to the improve skill. Apply the change directly:
 
 1. Read `{results-dir}/experiments.json`. Find the last entry. Note its
-   `run-id`. Set `improvement-status` → `"approved"`. Write back.
+   `run-id`. Set `improvement-status` → `"approved"`. Write back using the Write tool.
 
 2. Read `{results-dir}/{run-id}/proposal.md`. Extract the diff from the
    **Diff** section.
@@ -192,7 +192,7 @@ Do not delegate to the improve skill. Apply the change directly:
    - If `$ARGUMENTS` contains `--focus <override>`, set `suggested-next-focus`
      to that value.
 
-   Write back.
+   Write back using the Write tool — do not use Bash or a heredoc.
 
 5. Report the files changed and the suggested next focus.
 

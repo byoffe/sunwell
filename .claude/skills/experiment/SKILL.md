@@ -131,7 +131,8 @@ Build the `delta` object:
 }
 ```
 
-Write the `delta` field to the experiment entry in `{results-dir}/experiments.json`.
+Write the `delta` field to the experiment entry in `{results-dir}/experiments.json`
+using the Write tool — do not use Bash or a heredoc.
 
 **8. Report**
 
