@@ -3,7 +3,7 @@ name: spec
 description: Guides the three-phase spec workflow for a story. Requirements covers the full vision and persists. Design and tasks are cumulative living documents — each commit appends to them. Compression is optional maintenance, not a post-commit ritual.
 when_to_use: When the user asks to plan, design, spec, or start work on a new story or non-trivial change.
 argument-hint: "[requirements|design|tasks|compress|close]"
-allowed-tools: "Bash(rm spec/*) Edit Glob Read Write"
+allowed-tools: "Bash(rm spec/*) Bash(git add) Edit Glob Read Write"
 ---
 
 # Spec Workflow
@@ -71,6 +71,20 @@ Check what already exists in `spec/`:
 
 If `$ARGUMENTS` names a phase explicitly (`requirements`, `design`, or `tasks`),
 jump to that phase regardless.
+
+---
+
+## Git Hygiene
+
+After writing any spec file (`requirements.md`, `design.md`, `tasks.md`,
+`feedback.md`), immediately run:
+
+```!
+git add spec/<filename>
+```
+
+This keeps the working tree clean per the project convention. Do not batch
+— stage each file the moment it is written.
 
 ---
 
