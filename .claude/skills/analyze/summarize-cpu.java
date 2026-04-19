@@ -22,6 +22,15 @@ class SummarizeCpu {
         }
 
         Path file = Path.of(args[0]);
+        if (!Files.exists(file)) {
+            System.err.println("Error: file not found: " + file);
+            System.exit(1);
+        }
+        if (!Files.isReadable(file)) {
+            System.err.println("Error: file not readable: " + file);
+            System.exit(1);
+        }
+
         String threadPattern = argValue(args, "--thread");
         String rawPkg        = argValue(args, "--package");
         String packagePrefix = rawPkg != null ? rawPkg.replace('.', '/') : null;
@@ -53,6 +62,7 @@ class SummarizeCpu {
                 RecordedFrame top = null;
 
                 if (packagePrefix != null) {
+                    // Walk top-of-stack downward; skip this sample if no frame matches.
                     for (RecordedFrame f : frames) {
                         if (internalName(f).startsWith(packagePrefix)) { top = f; break; }
                     }
@@ -91,13 +101,19 @@ class SummarizeCpu {
     }
 
     static String internalName(RecordedFrame f) {
-        return f.getMethod().getType().getName().replace('.', '/');
+        RecordedClass type = f.getMethod().getType();
+        if (type == null) return "";
+        String name = type.getName();
+        return name != null ? name.replace('.', '/') : "";
     }
 
     static String frameKey(RecordedFrame f) {
-        String cls  = f.getMethod().getType().getName().replace('/', '.');
+        RecordedClass type = f.getMethod().getType();
+        String cls  = type != null && type.getName() != null
+            ? type.getName().replace('/', '.') : "Unknown";
         String meth = f.getMethod().getName();
-        int    line = f.getLineNumber();
+        if (meth == null) meth = "unknown";
+        int line = f.getLineNumber();
         return cls + "." + meth + (line > 0 ? ":" + line : "");
     }
 

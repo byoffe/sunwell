@@ -15,9 +15,10 @@ import java.util.stream.*;
  */
 class SummarizeAlloc {
 
-    // Frames from these prefixes are skipped when looking for the application frame
+    // Frames from these prefixes are skipped when looking for the application frame.
+    // This is a best-effort heuristic; not exhaustive for all JVM vendors.
     private static final List<String> JDK_PREFIXES = List.of(
-        "java/", "jdk/", "sun/", "com/sun/"
+        "java/", "jdk/", "sun/", "com/sun/", "com/oracle/", "org/openjdk/"
     );
 
     public static void main(String[] args) throws Exception {
@@ -27,6 +28,15 @@ class SummarizeAlloc {
         }
 
         Path file = Path.of(args[0]);
+        if (!Files.exists(file)) {
+            System.err.println("Error: file not found: " + file);
+            System.exit(1);
+        }
+        if (!Files.isReadable(file)) {
+            System.err.println("Error: file not readable: " + file);
+            System.exit(1);
+        }
+
         String threadPattern = argValue(args, "--thread");
         String rawPkg        = argValue(args, "--package");
         String packagePrefix = rawPkg != null ? rawPkg.replace('.', '/') : null;
@@ -99,10 +109,9 @@ class SummarizeAlloc {
         int limit = Math.min(20, sorted.size());
         for (int i = 0; i < limit; i++) {
             Map.Entry<String, Long> entry = sorted.get(i);
-            System.out.printf("  %5.1f%%  %9s  %s%n",
-                100.0 * entry.getValue() / totalWeight,
-                formatBytes(entry.getValue()),
-                entry.getKey());
+            // Guard against totalWeight=0 (all-zero weight events) to avoid Infinity output
+            double pct = totalWeight > 0 ? 100.0 * entry.getValue() / totalWeight : 0.0;
+            System.out.printf("  %5.1f%%  %9s  %s%n", pct, formatBytes(entry.getValue()), entry.getKey());
         }
         if (sorted.size() > limit) {
             System.out.printf("  ... and %d more site(s)%n", sorted.size() - limit);
@@ -110,13 +119,19 @@ class SummarizeAlloc {
     }
 
     static String internalName(RecordedFrame f) {
-        return f.getMethod().getType().getName().replace('.', '/');
+        RecordedClass type = f.getMethod().getType();
+        if (type == null) return "";
+        String name = type.getName();
+        return name != null ? name.replace('.', '/') : "";
     }
 
     static String frameKey(RecordedFrame f) {
-        String cls  = f.getMethod().getType().getName().replace('/', '.');
+        RecordedClass type = f.getMethod().getType();
+        String cls  = type != null && type.getName() != null
+            ? type.getName().replace('/', '.') : "Unknown";
         String meth = f.getMethod().getName();
-        int    line = f.getLineNumber();
+        if (meth == null) meth = "unknown";
+        int line = f.getLineNumber();
         return cls + "." + meth + (line > 0 ? ":" + line : "");
     }
 

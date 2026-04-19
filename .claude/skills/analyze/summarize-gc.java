@@ -5,7 +5,7 @@ import java.util.*;
 
 /**
  * Reads GC-related events from a JFR file and prints a compact GC summary:
- * collection count, pause stats, heap usage, allocation rate, and GC causes.
+ * collection count, pause stats, heap usage, GC reclaim rate, and GC causes.
  *
  * Usage: java summarize-gc.java <jfr-file>
  *
@@ -20,6 +20,14 @@ class SummarizeGc {
         }
 
         Path file = Path.of(args[0]);
+        if (!Files.exists(file)) {
+            System.err.println("Error: file not found: " + file);
+            System.exit(1);
+        }
+        if (!Files.isReadable(file)) {
+            System.err.println("Error: file not readable: " + file);
+            System.exit(1);
+        }
 
         int gcCount       = 0;
         long totalPauseNs = 0;
@@ -43,9 +51,10 @@ class SummarizeGc {
 
                 switch (e.getEventType().getName()) {
                     case "jdk.GarbageCollection": {
+                        Duration d = e.getDuration("duration");
+                        if (d == null) break;
                         gcCount++;
-                        Duration d  = e.getDuration("duration");
-                        long     ns = d.toNanos();
+                        long ns = d.toNanos();
                         totalPauseNs += ns;
                         if (ns > maxPauseNs) maxPauseNs = ns;
                         String cause = e.getString("cause");
@@ -56,6 +65,7 @@ class SummarizeGc {
                         long   gcId = e.getLong("gcId");
                         long   used = e.getLong("heapUsed");
                         String when = e.getString("when");
+                        if (when == null) break;
                         if ("Before GC".equals(when)) heapBefore.put(gcId, used);
                         else if ("After GC".equals(when)) heapAfter.put(gcId, used);
                         break;
@@ -70,22 +80,29 @@ class SummarizeGc {
             return;
         }
 
-        // Recording duration
-        double durationSec = (firstEvent != null && lastEvent != null && !firstEvent.equals(lastEvent))
-            ? Duration.between(firstEvent, lastEvent).toMillis() / 1000.0 : 1.0;
+        // Recording duration from first/last event across the whole file.
+        // Falls back to 1.0 s if the recording has only one distinct timestamp
+        // (e.g. a very short or truncated file); rates will be approximate in that case.
+        double durationSec;
+        if (firstEvent != null && lastEvent != null && !firstEvent.equals(lastEvent)) {
+            durationSec = Duration.between(firstEvent, lastEvent).toMillis() / 1000.0;
+        } else {
+            System.err.println("Warning: unable to determine recording duration; rate metrics assume 1.0 s");
+            durationSec = 1.0;
+        }
 
         // Pause stats
-        double gcFreq      = gcCount / durationSec;
-        double avgPauseMs  = (totalPauseNs / 1_000_000.0) / gcCount;
-        double maxPauseMs  = maxPauseNs / 1_000_000.0;
+        double gcFreq       = gcCount / durationSec;
+        double avgPauseMs   = (totalPauseNs / 1_000_000.0) / gcCount;
+        double maxPauseMs   = maxPauseNs / 1_000_000.0;
         double totalPauseMs = totalPauseNs / 1_000_000.0;
-        double pausePct    = (totalPauseNs / 1_000_000_000.0) / durationSec * 100.0;
+        double pausePct     = (totalPauseNs / 1_000_000_000.0) / durationSec * 100.0;
 
-        // Heap and allocation stats
-        long totalReclaimed  = 0;
-        long sumHeapBefore   = 0;
-        long sumHeapAfter    = 0;
-        int  heapSamples     = 0;
+        // Heap and reclaim stats
+        long totalReclaimed = 0;
+        long sumHeapBefore  = 0;
+        long sumHeapAfter   = 0;
+        int  heapSamples    = 0;
 
         for (long gcId : heapBefore.keySet()) {
             if (heapAfter.containsKey(gcId)) {
@@ -101,7 +118,10 @@ class SummarizeGc {
         long avgBefore  = heapSamples > 0 ? sumHeapBefore / heapSamples : 0;
         long avgAfter   = heapSamples > 0 ? sumHeapAfter  / heapSamples : 0;
         long avgReclaim = heapSamples > 0 ? totalReclaimed / heapSamples : 0;
-        double allocMbSec = durationSec > 0 ? (totalReclaimed / 1_000_000.0) / durationSec : 0;
+
+        // Reclaim rate is a proxy for allocation rate in steady state (what GC had to
+        // reclaim each second ≈ what the application allocated each second).
+        double reclaimMbSec = (totalReclaimed / 1_000_000.0) / durationSec;
 
         // Output
         System.out.printf("GC Summary  [%s]%n", file.getFileName());
@@ -112,7 +132,7 @@ class SummarizeGc {
         System.out.printf("Max pause:             %.2f ms%n", maxPauseMs);
         System.out.printf("Total pause time:      %.1f ms  (%.1f%% of recording)%n%n", totalPauseMs, pausePct);
 
-        System.out.printf("Allocation rate:       %.0f MB/s%n", allocMbSec);
+        System.out.printf("Allocation rate:       %.0f MB/s%n", reclaimMbSec);
         System.out.printf("Avg heap before GC:    %s%n", formatBytes(avgBefore));
         System.out.printf("Avg heap after GC:     %s%n", formatBytes(avgAfter));
         System.out.printf("Avg reclaimed/cycle:   %s%n%n", formatBytes(avgReclaim));
