@@ -182,15 +182,17 @@
 - [x] 9. *(merged into task 8)*
 - [x] 10. Update `CLAUDE.md` repo structure: `loop/SKILL.md` → `run/SKILL.md`;
           add `clean/SKILL.md`; update results path description
-- [ ] 11. Run `/clean --config examples/toy-app` against the current
+- [x] 11. Run `/clean --config examples/toy-app` against the current
           `examples/toy-app/sunwell-results/` state: verify it presents the
           confirmation summary, reverts `CpuHog.java`, and deletes the
           `sunwell-results/` directory
-- [ ] 12. Run `/run --config examples/toy-app` end-to-end: verify results land
+- [x] 12. Run `/run --config examples/toy-app` end-to-end: verify results land
           in `examples/toy-app/sunwell-results/`, loop runs past the first
           iteration (SUCCESS now requires ALL benchmarks), and the skill is
           invoked without name collision
-- [ ] 13. `git status` — confirm no untracked files
+- [x] 13. `git status` — confirm no untracked files (two skill files modified
+          during testing: run/SKILL.md and improve/SKILL.md — approve-gate
+          fix required to make /run approve work correctly)
 
 ## Notes
 

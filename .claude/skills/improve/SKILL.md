@@ -2,7 +2,7 @@
 name: improve
 description: Proposes one targeted code change based on profiling analysis, gates implementation on explicit developer approval, and records the proposal and outcome in experiments.json.
 when_to_use: When the user asks to improve, optimize, or propose a change based on a completed profiling analysis.
-argument-hint: "[--config <app-path>] [run-id]"
+argument-hint: "[--config <app-path>] [run-id] | approve [--focus <focus>] | reject"
 allowed-tools: "Read Write Edit"
 ---
 
@@ -27,6 +27,11 @@ modified until the developer types `approve`.
 Parse `$ARGUMENTS`:
 - `--config <app-path>` → use that directory; default to `.`
 - remaining first non-flag token → run-id override
+
+**Approval fast-path:** If `$ARGUMENTS` begins with `approve` (e.g. the skill
+was re-invoked with `/improve approve`), skip all of Phase 1 and jump
+immediately to **Phase 2 — Implement**. Treat `$ARGUMENTS` as the approval
+response (extract `--focus <override>` if present).
 
 Derive: `results-dir = {app-path}/sunwell-results`
 

@@ -57,6 +57,8 @@ Inspect the **last entry** in the array and map it to a resume state:
 | No file, or empty array | `BASELINE` |
 | `analysis-path: null` | `ANALYZE` |
 | `analysis-path` set, `improvement-status: null` | `IMPROVE_PROPOSE` |
+| `improvement-status: "proposed"` AND `$ARGUMENTS` begins with `approve` | `IMPROVE_IMPLEMENT` |
+| `improvement-status: "proposed"` AND `$ARGUMENTS` begins with `reject` | `IMPROVE_REJECT` |
 | `improvement-status: "proposed"` | `IMPROVE_PROPOSE` |
 | `improvement-status: "approved"` | `IMPROVE_IMPLEMENT` |
 | `improvement-status: "implemented"`, `delta: null` | `EXPERIMENT` |
@@ -148,15 +150,16 @@ Advance to `IMPROVE_PROPOSE`.
 Read and follow `.claude/skills/improve/SKILL.md` **Phase 1 only**, passing
 `--config {app-path}`.
 
-The improve skill will write `proposal.md`, update `{results-dir}/experiments.json`,
-present the proposal, and **stop** waiting for developer input.
+The improve skill writes `proposal.md`, updates `{results-dir}/experiments.json`
+with `improvement-status: "proposed"`, presents the proposal, and **stops**
+waiting for developer input.
 
-When the developer responds:
+Developer responds by re-invoking `/run approve` or `/run reject`.
 
-**On `approve` or `approve --focus <override>`:**
-Advance to `IMPROVE_IMPLEMENT`, carrying the focus override if present.
+---
 
-**On `reject`:**
+## IMPROVE_REJECT State
+
 Read `{results-dir}/experiments.json`. Find the last entry. Set
 `improvement-status` → `"rejected"`. Write back.
 
@@ -173,11 +176,25 @@ Stop.
 
 **[ITERATION N] [STAGE 4] Improve — implementing**
 
-Read and follow `.claude/skills/improve/SKILL.md` **Phase 2 only**, using the
-`approve` (or `approve --focus <override>`) response already received.
+Do not delegate to the improve skill. Apply the change directly:
 
-The improve skill will apply the diff and update `{results-dir}/experiments.json`
-with `files-changed` and `improvement-status: "implemented"`.
+1. Read `{results-dir}/experiments.json`. Find the last entry. Note its
+   `run-id`. Set `improvement-status` → `"approved"`. Write back.
+
+2. Read `{results-dir}/{run-id}/proposal.md`. Extract the diff from the
+   **Diff** section.
+
+3. Apply the diff to the source file(s) using the Edit tool.
+
+4. Read `{results-dir}/experiments.json`. Update the last entry:
+   - `files-changed` → list of modified file paths
+   - `improvement-status` → `"implemented"`
+   - If `$ARGUMENTS` contains `--focus <override>`, set `suggested-next-focus`
+     to that value.
+
+   Write back.
+
+5. Report the files changed and the suggested next focus.
 
 Advance to `EXPERIMENT`.
 
