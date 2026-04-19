@@ -2,7 +2,7 @@
 name: spec
 description: Guides the three-phase spec workflow for a story. Requirements covers the full vision and persists. Design and tasks are cumulative living documents — each commit appends to them. Compression is optional maintenance, not a post-commit ritual.
 when_to_use: When the user asks to plan, design, spec, or start work on a new story or non-trivial change.
-argument-hint: "[requirements|design|tasks]"
+argument-hint: "[requirements|design|tasks|compress|close]"
 allowed-tools: "Bash(rm spec/*) Edit Glob Read Write"
 ---
 

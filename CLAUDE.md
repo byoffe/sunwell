@@ -96,6 +96,15 @@ Claude selects profiler flags based on stated goal. No Java code involved.
 Start with JFR — zero external dependencies, built into JDK 11+.
 async-profiler comes later.
 
+### Analyze Scripts Use `jdk.jfr.consumer` Directly
+The three summarize scripts (`summarize-cpu.java`, `summarize-alloc.java`,
+`summarize-gc.java`) use the `jdk.jfr.consumer` API instead of shelling out
+to `jfr print`. `jfr print --json` output is ~16× larger than text due to
+deeply-nested class loader and module metadata on every stack frame — not
+viable as LLM input. The typed API gives stable, direct access to events with
+no subprocess or text parsing fragility. JDK 11+ is guaranteed on any machine
+that can profile a Java app.
+
 ### Target Environment
 - Local: Windows workstation, Docker for the "remote" server
 - Docker mimics remote server — same scripts, same SSH, localhost:2222
