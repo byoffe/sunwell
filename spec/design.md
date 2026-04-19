@@ -304,28 +304,80 @@ async-profiler: -prof "async:libPath=/opt/async-profiler/lib/libasyncProfiler.so
 
 ---
 
-## Commit 3 — Analyze Skill: Profiler Context and Safepoint Awareness (sketch)
+## Commit 3 — Analyze Skill: Profiler Context and Safepoint Awareness (detailed)
 
-**Scope:** Analyze skill reads which profiler produced the recording and uses
-that context in analysis.md and subagent prompts. Summarize script updates
-if Spike A found mismatches.
+### Scope
 
-**Approach (subject to Spike A findings):**
-- Read `profiler` from the experiments.json run entry.
-- Add `**Profiler:** <jfr|async-profiler>` to the analysis.md header block.
-- Inject profiler context into the subagent interpretation prompt:
-  - JFR: *"Note: ExecutionSample events are safepoint-biased — hotspots in
-    tight loops may be under-represented."*
-  - async-profiler: *"Note: this data was collected by async-profiler using
-    AsyncGetCallTrace — not safepoint-biased; hotspots reflect true CPU time."*
-- If Spike A found event type mismatches: update the affected summarize
-  script(s) to query the async-profiler event type names in addition to (or
-  instead of) the JDK event type names.
+Acceptance criteria addressed: async-profiler JMH Integration (last three),
+Profiler Context in Analysis (all four), Docker Target cpu/memory end-to-end.
 
-**Files touched:** `.claude/skills/analyze/SKILL.md`, and conditionally
-`summarize-cpu.java` and/or `summarize-alloc.java`.
+### Approach
 
-**Gates on:** Spike A event type findings.
+Two independent concerns in one commit: fix the broken analysis pipeline for
+async-profiler recordings (glob + summarize-alloc.java), then add profiler
+context to the analyze skill output and subagent prompts.
+
+### Key Decisions
+
+| Decision | Choice | Rationale |
+|---|---|---|
+| summarize-alloc.java fix | Accept all three allocation event types | `jdk.ObjectAllocationSample` (JFR native), `jdk.ObjectAllocationInNewTLAB`, `jdk.ObjectAllocationOutsideTLAB` (async-profiler). Using the `allocationSize` field for the latter two; `weight` for the former |
+| Recording glob | `**/*.jfr` | Spike B confirmed async-profiler produces `jfr-cpu.jfr` / `jfr-alloc.jfr`, not `profile.jfr`. Widening the glob handles both without special-casing |
+| Profiler context location | analysis.md header + subagent prompt | Header for human readers; prompt injection shapes the subagent's interpretation before it sees the data |
+| Safepoint bias wording | Brief one-sentence notes, not paragraphs | The subagent should be informed, not overwhelmed |
+
+### File and Component Changes
+
+| File | Change |
+|---|---|
+| `.claude/skills/analyze/summarize-alloc.java` | Accept `jdk.ObjectAllocationInNewTLAB` and `jdk.ObjectAllocationOutsideTLAB` with `allocationSize` weight alongside existing `jdk.ObjectAllocationSample` with `weight` |
+| `.claude/skills/analyze/SKILL.md` | Change recording discovery glob from `**/profile.jfr` to `**/*.jfr`; read `profiler` from experiments.json entry; add `**Profiler:**` to analysis.md header template; inject profiler-aware note into subagent prompt |
+
+### summarize-alloc.java Change (detail)
+
+The event filter on line 52 changes from:
+
+```java
+if (!"jdk.ObjectAllocationSample".equals(e.getEventType().getName())) continue;
+```
+
+To a multi-type check that also selects the weight field by event type:
+
+```java
+String eventName = e.getEventType().getName();
+boolean isAllocSample = "jdk.ObjectAllocationSample".equals(eventName);
+boolean isNewTLAB     = "jdk.ObjectAllocationInNewTLAB".equals(eventName);
+boolean isOutsideTLAB = "jdk.ObjectAllocationOutsideTLAB".equals(eventName);
+if (!isAllocSample && !isNewTLAB && !isOutsideTLAB) continue;
+
+long weight = isAllocSample
+    ? e.getLong("weight")
+    : e.getLong("allocationSize");
+```
+
+### Subagent Prompt Injection (detail)
+
+The subagent instruction block in Step 5 of the analyze skill gains a
+profiler-aware sentence prepended to the instruction:
+
+- JFR: *"Note: CPU samples (jdk.ExecutionSample) are safepoint-biased —
+  hotspots in tight loops or JNI may be under-represented."*
+- async-profiler: *"Note: CPU samples were collected by async-profiler
+  (AsyncGetCallTrace) — no safepoint bias; hotspots reflect true CPU time."*
+
+### Edge Cases and Failure Modes
+
+- A recording may contain a mix of event types if the user manually combined
+  recordings. The multi-type check handles this gracefully — all matching
+  events are counted regardless of source.
+- If `profiler` is null in experiments.json (pre-Commit-2 runs), the analyze
+  skill defaults to `jfr` for the safepoint-bias note and omits the
+  `**Profiler:**` header line rather than erroring.
+
+### Deferred to Later Commits
+
+- CLAUDE.md profiler table update (Commit 4)
+- Profile skill description frontmatter update (Commit 4)
 
 ---
 

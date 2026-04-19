@@ -178,28 +178,28 @@ flag combinations. Confirm recordings land at the expected path structure.
 
 ### Profiler Detection
 
-- [ ] Given the target host has async-profiler installed, when any focus that
+- [x] Given the target host has async-profiler installed, when any focus that
   prefers async-profiler is requested, then the skill uses async-profiler
   and reports "using async-profiler (available at <path>)".
 
-- [ ] Given the target host does not have async-profiler, when a focus that
+- [x] Given the target host does not have async-profiler, when a focus that
   prefers async-profiler is requested, then the skill falls back to JFR and
   reports "async-profiler not found on <target>; falling back to JFR".
 
-- [ ] Given `baseline` or `gc` focus, when the profile skill runs, then it
+- [x] Given `baseline` or `gc` focus, when the profile skill runs, then it
   uses JFR without probing for async-profiler.
 
-- [ ] The detection probe is a single lightweight SSH check (e.g.,
+- [x] The detection probe is a single lightweight SSH check (e.g.,
   `which async-profiler || ls /opt/async-profiler/lib/libasyncProfiler.so`);
   it does not attempt to install or deploy anything.
 
 ### async-profiler JMH Integration
 
-- [ ] When async-profiler is used, the JMH profiler flag uses the confirmed
+- [x] When async-profiler is used, the JMH profiler flag uses the confirmed
   syntax from Spike B, with the correct `event=` value per focus
   (`cpu → event=cpu`, `memory → event=alloc`) and `output=jfr`.
 
-- [ ] The per-benchmark recording files land at the path structure confirmed
+- [x] The per-benchmark recording files land at the path structure confirmed
   by Spike B — consistent with what collect-ssh.sh expects.
 
 - [ ] Given a completed async-profiler cpu run, when the analyze skill
@@ -234,19 +234,19 @@ flag combinations. Confirm recordings land at the expected path structure.
 
 ### Override
 
-- [ ] `sunwell.yml` accepts an optional `profile.profiler-override` block
+- [x] `sunwell.yml` accepts an optional `profile.profiler-override` block
   that maps focus names to profiler names (e.g., `cpu: jfr`).
 
-- [ ] Given a `profiler-override` entry for a focus, when that focus is
+- [x] Given a `profiler-override` entry for a focus, when that focus is
   profiled, then the overridden profiler is used and a note is logged:
   "profiler override: using <profiler> for focus <focus>".
 
-- [ ] `sunwell.yml` for the toy-app includes a commented-out example of the
+- [x] `sunwell.yml` for the toy-app includes a commented-out example of the
   override block.
 
 ### Docker Target
 
-- [ ] The Docker image installs async-profiler during image build (not at
+- [x] The Docker image installs async-profiler during image build (not at
   run time) at a well-known path (e.g., `/opt/async-profiler/`).
 
 - [ ] Given the toy-app container is running, when `--focus cpu` is profiled,
