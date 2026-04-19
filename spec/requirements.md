@@ -169,11 +169,11 @@ flag combinations. Confirm recordings land at the expected path structure.
 
 ### Spikes
 
-- [ ] Spike A finding is documented in design.md: which JFR event type names
+- [x] Spike A finding is documented in design.md: which JFR event type names
   async-profiler emits for cpu and alloc profiling, and whether existing
   summarize scripts are compatible as-is.
 
-- [ ] Spike B finding is documented in design.md: confirmed working JMH flag
+- [x] Spike B finding is documented in design.md: confirmed working JMH flag
   string and recording path structure, plus any caveats.
 
 ### Profiler Detection

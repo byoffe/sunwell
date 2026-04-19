@@ -2,79 +2,104 @@
 
 ## Commit 1 — Docker + Spikes
 
-- [ ] 1. Look up the SHA256 checksum for `async-profiler-3.0-linux-x64.tar.gz`
+- [x] 1. Look up the SHA256 checksum for `async-profiler-4.3-linux-x64.tar.gz`
          on the async-profiler GitHub releases page.
+         Result: `69a16462c34c06ff55618f41653cffad1f8946822d30842512a3e0e774841c06`
 
-- [ ] 2. Update `examples/docker/Dockerfile`:
+- [x] 2. Update `examples/docker/Dockerfile`:
          - Add `curl` to the existing `apt-get install` line (alongside `openssh-server`)
-         - Add `ARG ASYNC_PROFILER_VERSION=3.0` and `ARG ASYNC_PROFILER_SHA256=<hash>`
+         - Add `ARG ASYNC_PROFILER_VERSION=4.3` and `ARG ASYNC_PROFILER_SHA256=<hash>`
            near the top of the file
          - Add a `RUN` layer that downloads, verifies SHA256, extracts to
            `/opt/async-profiler/`, and removes the tarball
          - Add `ASYNC_PROFILER_HOME=/opt/async-profiler` to `/etc/environment`
 
-- [ ] 3. Rebuild the Docker image and restart the container. Verify
-         `/opt/async-profiler/lib/libasyncProfiler.so` exists in the container.
+- [x] 3. Rebuild the Docker image and restart the container. Verified
+         `/opt/async-profiler/lib/libasyncProfiler.so` present; `asprof --version`
+         reports async-profiler 4.3.
 
-- [ ] 4. Deploy the toy-app JAR (`/deploy examples/toy-app`) so the benchmarks
-         are available for the spikes.
+- [x] 4. Deploy the toy-app JAR to the container via Maven + SCP.
 
-- [ ] 5. Run Spike A — cpu event types:
-         - Run `CpuHogBenchmark` with `event=cpu;output=jfr` via SSH
-         - List all JFR event type names in the recording
-         - Run `summarize-cpu.java` against the recording; note whether output
-           is populated or empty
+- [x] 5. Run Spike A — cpu event types:
+         Event types present: `jdk.ExecutionSample` (plus housekeeping).
+         `summarize-cpu.java` produces populated output — compatible as-is.
 
-- [ ] 6. Run Spike A — alloc event types:
-         - Run `MemoryHogBenchmark` with `event=alloc;output=jfr` via SSH
-         - List all JFR event type names in the recording
-         - Run `summarize-alloc.java` against the recording; note whether output
-           is populated or empty
+- [x] 6. Run Spike A — alloc event types:
+         Event types present: `jdk.ObjectAllocationInNewTLAB` (not
+         `jdk.ObjectAllocationSample`). `summarize-alloc.java` produces
+         empty output — update required in Commit 3.
 
-- [ ] 7. Run Spike B — confirm JMH flag syntax and recording path structure:
-         - Run a benchmark with the full `-prof async:...` flag string
-         - Confirm the exact flag string that produces clean output
-         - Confirm where `.jfr` files land relative to the `dir=` argument
-         - Note whether the path structure matches what `collect-ssh.sh` expects
+- [x] 7. Run Spike B — JMH flag syntax confirmed:
+         `event=cpu` → `jfr-cpu.jfr`, `event=alloc` → `jfr-alloc.jfr`.
+         Files land at `<dir>/<benchmark-fqn>-<mode>/jfr-{event}.jfr`.
+         Analyze skill glob must change from `**/profile.jfr` to `**/*.jfr`.
 
-- [ ] 8. Record all findings in the Spike A and Spike B sections of
-         `spec/design.md`.
+- [x] 8. Spike A and Spike B findings recorded in `spec/design.md`.
 
-- [ ] 9. `git add` all changed files; commit.
+- [x] 9. `git add` all changed files; committed and pushed.
 
 ---
 
-## Commit 2 — Profile Skill: Detection, Routing, JMH Flags, Override (sketch)
+## Commit 2 — Profile Skill: Detection, Routing, JMH Flags, Override
 
-- [ ] 10. Add SSH detection probe for async-profiler to the profile skill.
-- [ ] 11. Implement focus → profiler routing with fallback (cpu/memory → async-profiler
-          if available, else JFR; lock → JFR always for now; baseline/gc → JFR always).
-- [ ] 12. Build correct JMH flag string for async-profiler (event=cpu or event=alloc)
-          using confirmed Spike B syntax.
-- [ ] 13. Add `profile.profiler-override` support to sunwell.yml schema and
-          profile skill; add commented example to toy-app sunwell.yml.
-- [ ] 14. Remove the hard-stop for cpu/memory/lock focuses.
-- [ ] 15. Ensure `profiler` field in experiments.json is always populated.
-- [ ] 16. `git add` all changed files; commit.
+- [ ] 10. Rename `.claude/skills/profile/profile-jfr.sh` to `profile-run.sh`
+          using `git mv`. Add an eighth parameter `<profiler-flag>` to the
+          script signature. Replace the hardcoded `-prof jfr:dir=...` on
+          line 57 with the passed-in value. Update the usage comment.
+
+- [ ] 11. Update the profile skill (SKILL.md) Step 2 routing table to replace
+          the hard-stop block with the detection-and-fallback logic:
+          - baseline/gc → JFR always (no probe)
+          - cpu/memory/lock → probe target, use async-profiler if found,
+            else JFR; apply profiler-override before probe if set
+          - Log which profiler was selected and why
+
+- [ ] 12. Add the SSH detection probe as a new Step 2a in the skill:
+          single SSH command checking for
+          `/opt/async-profiler/lib/libasyncProfiler.so`.
+
+- [ ] 13. Add focus → async-profiler event mapping to the skill:
+          cpu → `event=cpu`, memory → `event=alloc`, lock → `event=lock`.
+
+- [ ] 14. Update the script invocation in Step 4 of the skill to pass the
+          constructed profiler flag string as the eighth argument.
+          Update the script filename reference from `profile-jfr.sh` to
+          `profile-run.sh`.
+
+- [ ] 15. Add `profile.profiler-override` parsing to Step 1 of the skill
+          (read sunwell.yml). Apply override in the routing logic.
+
+- [ ] 16. Add the commented `profile.profiler-override` example block to
+          `examples/toy-app/sunwell.yml`.
+
+- [ ] 17. Verify end-to-end: profile with `--focus cpu` and `--focus memory`
+          against the Docker container; confirm recordings are collected and
+          experiments.json shows `"profiler": "async-profiler"`.
+
+- [ ] 18. `git add` all changed files; commit.
 
 ---
 
 ## Commit 3 — Analyze Skill: Profiler Context and Safepoint Awareness (sketch)
 
-- [ ] 17. Update analyze skill to read `profiler` from experiments.json entry.
-- [ ] 18. Add `**Profiler:**` line to analysis.md header template.
-- [ ] 19. Inject safepoint-bias note into subagent prompt (direction depends on
+- [ ] 19. Update `summarize-alloc.java` to accept `jdk.ObjectAllocationInNewTLAB`
+          and `jdk.ObjectAllocationOutsideTLAB` (weight field: `allocationSize`)
+          in addition to `jdk.ObjectAllocationSample` (weight field: `weight`).
+          `summarize-cpu.java` needs no changes (Spike A confirmed compatible).
+- [ ] 20. Change the analyze skill recording discovery glob from `**/profile.jfr`
+          to `**/*.jfr` (Spike B finding: async-profiler filenames differ).
+- [ ] 21. Update analyze skill to read `profiler` from experiments.json entry.
+- [ ] 22. Add `**Profiler:**` line to analysis.md header template.
+- [ ] 23. Inject safepoint-bias note into subagent prompt (direction depends on
           profiler: JFR → warn, async-profiler → clear).
-- [ ] 20. Update summarize scripts if Spike A found event type mismatches
-          (may be a no-op if compatible as-is).
-- [ ] 21. `git add` all changed files; commit.
+- [ ] 24. `git add` all changed files; commit.
 
 ---
 
 ## Commit 4 — Documentation (sketch)
 
-- [ ] 22. Replace profiler table in `CLAUDE.md` with the preferred/fallback
+- [ ] 25. Replace profiler table in `CLAUDE.md` with the preferred/fallback
           table and rationale from requirements.md.
-- [ ] 23. Update profile skill `description:` frontmatter and focus routing
+- [ ] 26. Update profile skill `description:` frontmatter and focus routing
           table to reflect detection-and-fallback logic.
-- [ ] 24. `git add` all changed files; commit.
+- [ ] 27. `git add` all changed files; commit.

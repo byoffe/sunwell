@@ -207,29 +207,100 @@ updates. Everything depends on the spike findings.
 
 ---
 
-## Commit 2 — Profile Skill: Detection, Routing, JMH Flags, Override (sketch)
+## Commit 2 — Profile Skill: Detection, Routing, JMH Flags, Override (detailed)
 
-**Scope:** Profile skill end-to-end for cpu and memory focuses using
-async-profiler; fallback to JFR when not available; override mechanism;
-remove hard-stop for cpu/memory/lock.
+### Scope
 
-**Approach (subject to Spike B findings):**
-- Add an SSH detection step: probe `/opt/async-profiler/lib/libasyncProfiler.so`
-  (and `which asprof` as a secondary check). Cache the result for the run.
-- Build the JMH profiler flag string based on detected profiler + focus:
-  - async-profiler available + cpu: `event=cpu;output=jfr`
-  - async-profiler available + memory: `event=alloc;output=jfr`
-  - async-profiler available + lock: fall back to JFR (no lock analysis yet)
-  - async-profiler not available: JFR for all focuses
-- Read `profile.profiler-override` from sunwell.yml; if set for this focus,
-  use the specified profiler regardless of detection result.
-- Remove the hard-stop block in the profile skill. lock gets JFR silently.
-- Update experiments.json `profiler` field to reflect what was actually used.
+Acceptance criteria addressed: Profiler Detection (all four), async-profiler
+JMH Integration (first two), Override (all three). Also removes the hard-stop.
 
-**Files touched:** `.claude/skills/profile/SKILL.md`,
-`examples/toy-app/sunwell.yml` (commented override example).
+### Approach
 
-**Gates on:** Spike B confirmed flag string and path structure.
+The profile skill constructs the full JMH profiler flag string and passes it
+to the profile script as a parameter. The script remains thin and
+transport-only — it does not select a profiler. All routing logic stays in
+the skill.
+
+`profile-jfr.sh` is renamed `profile-run.sh` and gains an eighth parameter:
+the profiler flag string. The hardcoded `-prof jfr:dir=...` on line 57 is
+replaced with the passed-in value.
+
+Detection is a single inline SSH command in the skill — not a script. It
+checks for the `libasyncProfiler.so` at the known install path and reports
+found/not-found. One SSH round-trip, result used immediately for routing.
+
+### Key Decisions
+
+| Decision | Choice | Rationale |
+|---|---|---|
+| Profiler flag ownership | Skill constructs, script receives as param | Per CLAUDE.md: logic in skills, scripts are transport-only |
+| Script rename | `profile-jfr.sh` → `profile-run.sh` | The script now handles both JFR and async-profiler runs; the old name would be misleading |
+| Detection location | Inline SSH in skill (not a script) | A one-liner check doesn't warrant a script; keeps the transport boundary clean |
+| Detection target | `/opt/async-profiler/lib/libasyncProfiler.so` | Known install path from Commit 1; `asprof` binary is a secondary confirmation but the `.so` is what JMH needs |
+| Override schema | `profile.profiler-override` map in sunwell.yml | Consistent with the existing `analyze.hints` block style; per-focus granularity |
+
+### sunwell.yml Override Schema
+
+```yaml
+# Optional — force a specific profiler for one or more focuses.
+# Valid profiler values: jfr, async-profiler
+# profile:
+#   profiler-override:
+#     cpu: jfr        # force JFR even if async-profiler is available
+#     memory: jfr
+```
+
+### Routing Logic (in skill, Step 2)
+
+```
+if focus in {baseline, gc}:
+    profiler = jfr                        # always; no probe needed
+elif profile.profiler-override[focus] is set:
+    profiler = override value             # explicit operator choice
+elif /opt/async-profiler/lib/libasyncProfiler.so exists on target:
+    profiler = async-profiler
+else:
+    profiler = jfr                        # fallback; log the reason
+
+focus → async-profiler event mapping:
+    cpu    → event=cpu
+    memory → event=alloc
+    lock   → event=lock  (collected; not yet analyzed)
+```
+
+### JMH Flag Strings (constructed by skill, passed to script)
+
+```
+JFR:            -prof "jfr:dir=<remote-dir>"
+async-profiler: -prof "async:libPath=/opt/async-profiler/lib/libasyncProfiler.so;event=<event>;output=jfr;dir=<remote-dir>"
+```
+
+### File and Component Changes
+
+| File | Change |
+|---|---|
+| `.claude/skills/profile/profile-jfr.sh` | Rename to `profile-run.sh`; replace hardcoded `-prof jfr:...` with `$8` (profiler flag param); update usage comment |
+| `.claude/skills/profile/SKILL.md` | Add detection step (Step 2a); update routing table; update script invocation to pass profiler flag; remove hard-stop block |
+| `examples/toy-app/sunwell.yml` | Add commented `profile.profiler-override` example block |
+
+### Edge Cases and Failure Modes
+
+- If `profiler-override` specifies `async-profiler` but it is not installed,
+  the skill reports the conflict and stops rather than silently falling back.
+  Operator explicitly asked for it — silent fallback would be surprising.
+- If the detection SSH command fails (host unreachable, auth failure), the
+  profile step would already fail at the later SSH calls; no special handling.
+- `lock` focus: async-profiler is used if available (recording is collected),
+  but the analyze skill will find no active dimensions for it until Commit 3
+  adds lock analysis. The skill logs a note: "lock analysis not yet available;
+  recording collected for future use."
+
+### Deferred to Later Commits
+
+- `**/profile.jfr` → `**/*.jfr` glob fix in analyze skill (Commit 3)
+- Profiler context in analysis.md and safepoint-bias prompts (Commit 3)
+- `summarize-alloc.java` event type fix (Commit 3)
+- CLAUDE.md and skill description updates (Commit 4)
 
 ---
 
