@@ -1,0 +1,9 @@
+# Normalize line endings on commit; enforce LF for files that must stay LF.
+* text=auto
+
+# Shell scripts must stay LF — CRLF breaks bash on Linux/Docker targets.
+*.sh text eol=lf
+
+# Markdown and YAML: LF is fine everywhere and avoids churn on Windows.
+*.md text eol=lf
+*.yml text eol=lf
