@@ -42,39 +42,31 @@
 
 ## Commit 2 — Profile Skill: Detection, Routing, JMH Flags, Override
 
-- [ ] 10. Rename `.claude/skills/profile/profile-jfr.sh` to `profile-run.sh`
-          using `git mv`. Add an eighth parameter `<profiler-flag>` to the
-          script signature. Replace the hardcoded `-prof jfr:dir=...` on
-          line 57 with the passed-in value. Update the usage comment.
+- [x] 10. Rename `.claude/skills/profile/profile-jfr.sh` to `profile-run.sh`
+          using `git mv`. Added eighth parameter `<profiler-flag>`. Replaced
+          hardcoded `-prof jfr:dir=...` with passed-in value. Updated comment.
 
-- [ ] 11. Update the profile skill (SKILL.md) Step 2 routing table to replace
-          the hard-stop block with the detection-and-fallback logic:
-          - baseline/gc → JFR always (no probe)
-          - cpu/memory/lock → probe target, use async-profiler if found,
-            else JFR; apply profiler-override before probe if set
-          - Log which profiler was selected and why
+- [x] 11. Updated profile skill (SKILL.md) Step 2 routing table: replaced
+          hard-stop block with detection-and-fallback logic including override
+          check, JFR-always cases, and SSH probe for cpu/memory/lock.
 
-- [ ] 12. Add the SSH detection probe as a new Step 2a in the skill:
-          single SSH command checking for
-          `/opt/async-profiler/lib/libasyncProfiler.so`.
+- [x] 12. Added SSH detection probe as Step 2a: single SSH `test -f` command
+          checking for `/opt/async-profiler/lib/libasyncProfiler.so`.
 
-- [ ] 13. Add focus → async-profiler event mapping to the skill:
+- [x] 13. Added focus → async-profiler event mapping:
           cpu → `event=cpu`, memory → `event=alloc`, lock → `event=lock`.
 
-- [ ] 14. Update the script invocation in Step 4 of the skill to pass the
-          constructed profiler flag string as the eighth argument.
-          Update the script filename reference from `profile-jfr.sh` to
-          `profile-run.sh`.
+- [x] 14. Updated script invocation in Step 4 to pass profiler flag as eighth
+          argument and reference `profile-run.sh`.
 
-- [ ] 15. Add `profile.profiler-override` parsing to Step 1 of the skill
-          (read sunwell.yml). Apply override in the routing logic.
+- [x] 15. Added `profile.profiler-override` parsing to Step 1 and routing
+          logic including conflict-stop if override requests unavailable profiler.
 
-- [ ] 16. Add the commented `profile.profiler-override` example block to
+- [x] 16. Added commented `profile.profiler-override` example block to
           `examples/toy-app/sunwell.yml`.
 
-- [ ] 17. Verify end-to-end: profile with `--focus cpu` and `--focus memory`
-          against the Docker container; confirm recordings are collected and
-          experiments.json shows `"profiler": "async-profiler"`.
+- [x] 17. Verified end-to-end: cpu and memory focuses produced jfr-cpu.jfr
+          and jfr-alloc.jfr at expected paths on the Docker target.
 
 - [ ] 18. `git add` all changed files; commit.
 

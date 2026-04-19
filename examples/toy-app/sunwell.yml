@@ -21,6 +21,15 @@ targets:
 #     thread: jmh-worker        # keep only events from threads whose name contains this
 #     package: dev.sunwell.toy  # find first stack frame in this package instead of top-of-stack
 
+# Optional — force a specific profiler for one or more focuses.
+# Valid profiler values: jfr, async-profiler
+# Without this block, the profile skill detects async-profiler availability
+# and routes each focus to the preferred profiler automatically.
+# profile:
+#   profiler-override:
+#     cpu: jfr        # force JFR even if async-profiler is available
+#     memory: jfr
+
 # Optional — tune loop termination. Defaults apply if this block is absent.
 # loop:
 #   improvement-threshold-pct: 10   # stop (SUCCESS) when any benchmark improves by this much
