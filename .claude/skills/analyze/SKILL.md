@@ -34,7 +34,7 @@ Derive: `results-dir = {app-path}/sunwell-results`
 Read `{results-dir}/experiments.json`. Identify the target run: the named
 `run-id` if provided, otherwise the most recent entry (last in the array).
 Extract:
-- `run-id`, `focus`, `target`
+- `run-id`, `focus`, `target`, `profiler`
 
 Read `{app-path}/sunwell.yml`. Extract `analyze.hints` if present:
 - `thread` — thread name pattern (substring match)
@@ -42,10 +42,14 @@ Read `{app-path}/sunwell.yml`. Extract `analyze.hints` if present:
 
 **2. Discover recordings**
 
-Glob `{results-dir}/{run-id}/**/profile.jfr`. Each file is one benchmark.
-Extract a short benchmark name from the directory path — the portion between
-`{run-id}/` and the final `/profile.jfr` (e.g.,
+Glob `{results-dir}/{run-id}/**/*.jfr`. Each file is one recording.
+Group by benchmark: the short benchmark name is the portion of the path
+between `{run-id}/` and the final `/<filename>.jfr` (e.g.,
 `dev.sunwell.toy.CpuHogBenchmark.deduplicateTags-Throughput`).
+When multiple `.jfr` files share the same benchmark directory (async-profiler
+produces `jfr-cpu.jfr` and `jfr-alloc.jfr` rather than a single `profile.jfr`),
+treat them as the same benchmark — pass all of them to the appropriate
+summarize scripts.
 
 If no `.jfr` files are found, stop: "No recordings found under
 `{results-dir}/{run-id}/`. Run `/profile` first."
@@ -95,13 +99,24 @@ For each benchmark, spawn an Agent with:
 - The benchmark's short name and JFR file path
 - The focus and any hints applied
 - Paths to all dimension summary files for this benchmark
-- This instruction:
+- This instruction (substitute the `{profiler-note}` line based on the run's
+  `profiler` field):
 
 > "Read each summary file listed below. Produce a structured findings block
 > for this benchmark covering the active dimensions. For each dimension:
 > identify the top hotspots or patterns, note anything anomalous, and assess
 > severity (high / medium / low). Return plain text, under 300 words total.
-> Do not fabricate data not present in the summaries."
+> Do not fabricate data not present in the summaries.
+>
+> {profiler-note}"
+
+Where `{profiler-note}` is:
+- If `profiler == "jfr"`: "Note: this run used JFR, which only samples at
+  JVM safepoints. Tight loops or code without safepoint polls may be
+  under-represented in the CPU Hotspots section."
+- If `profiler == "async-profiler"`: "Note: this run used async-profiler,
+  which samples via AsyncGetCallTrace — not safepoint-biased. CPU hotspot
+  data reflects true wall-clock distribution."
 
 Collect all subagent findings.
 
@@ -113,7 +128,7 @@ Read all subagent findings (small structured text). Synthesize into
 ```markdown
 # Analysis: {run-id}
 
-**Focus:** {focus} | **Target:** {target} | **Benchmarks:** {N}
+**Focus:** {focus} | **Target:** {target} | **Profiler:** {profiler} | **Benchmarks:** {N}
 **Hints applied:** thread={thread}, package={package}
 (omit hints line if no hints were set)
 

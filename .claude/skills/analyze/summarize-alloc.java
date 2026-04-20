@@ -4,8 +4,13 @@ import java.util.*;
 import java.util.stream.*;
 
 /**
- * Reads jdk.ObjectAllocationSample events from a JFR file and prints a ranked
- * allocation hotspot table, weighted by bytes allocated.
+ * Reads allocation events from a JFR file and prints a ranked allocation
+ * hotspot table, weighted by bytes allocated.
+ *
+ * Accepts three event types:
+ *   jdk.ObjectAllocationSample        (JFR, field: weight)
+ *   jdk.ObjectAllocationInNewTLAB     (async-profiler, field: allocationSize)
+ *   jdk.ObjectAllocationOutsideTLAB   (async-profiler, field: allocationSize)
  *
  * Usage: java summarize-alloc.java <jfr-file> [--thread <pattern>] [--package <pkg>]
  *
@@ -49,7 +54,22 @@ class SummarizeAlloc {
         try (RecordingFile rf = new RecordingFile(file)) {
             while (rf.hasMoreEvents()) {
                 RecordedEvent e = rf.readEvent();
-                if (!"jdk.ObjectAllocationSample".equals(e.getEventType().getName())) continue;
+                String eventName = e.getEventType().getName();
+                // JFR native: jdk.ObjectAllocationSample (weight field)
+                // async-profiler JFR output: jdk.ObjectAllocationInNewTLAB and
+                //   jdk.ObjectAllocationOutsideTLAB (allocationSize field)
+                long weight;
+                switch (eventName) {
+                    case "jdk.ObjectAllocationSample":
+                        weight = e.getLong("weight");
+                        break;
+                    case "jdk.ObjectAllocationInNewTLAB":
+                    case "jdk.ObjectAllocationOutsideTLAB":
+                        weight = e.getLong("allocationSize");
+                        break;
+                    default:
+                        continue;
+                }
 
                 // Thread filter
                 RecordedThread thread = e.getThread("eventThread");
@@ -63,8 +83,6 @@ class SummarizeAlloc {
 
                 RecordedStackTrace stack = e.getStackTrace();
                 if (stack == null || stack.getFrames().isEmpty()) continue;
-
-                long weight = e.getLong("weight");
                 totalWeight += weight;
 
                 List<RecordedFrame> frames = stack.getFrames();

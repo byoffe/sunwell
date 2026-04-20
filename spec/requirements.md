@@ -210,25 +210,25 @@ flag combinations. Confirm recordings land at the expected path structure.
   processes the recordings, then it produces a populated Allocation section
   (not empty, not an error).
 
-- [ ] If Spike A reveals event type mismatches, the summarize scripts are
+- ✅ If Spike A reveals event type mismatches, the summarize scripts are
   updated to handle async-profiler's event types in addition to standard JFR
   event types. If compatible as-is, this criterion is satisfied by
   the Spike A finding alone.
 
 ### Profiler Context in Analysis
 
-- [ ] The `profiler` field in experiments.json is populated for every run
+- ✅ The `profiler` field in experiments.json is populated for every run
   (already in the schema; this confirms it is always set, not null).
 
-- [ ] The analyze skill reads `profiler` from the run's experiments.json entry
+- ✅ The analyze skill reads `profiler` from the run's experiments.json entry
   and includes it in the analysis.md header
   (`**Profiler:** jfr` or `**Profiler:** async-profiler`).
 
-- [ ] Given a JFR-profiled run, when the analyze skill generates its subagent
+- ✅ Given a JFR-profiled run, when the analyze skill generates its subagent
   interpretation prompt, then the prompt notes that ExecutionSample results
   may be affected by safepoint bias.
 
-- [ ] Given an async-profiler run, when the analyze skill generates its
+- ✅ Given an async-profiler run, when the analyze skill generates its
   subagent interpretation prompt, then the prompt notes that safepoint bias
   is not a concern for this data.
 

@@ -74,17 +74,17 @@
 
 ## Commit 3 — Analyze Skill: Profiler Context and Safepoint Awareness
 
-- [ ] 1. Update `summarize-alloc.java` to accept `jdk.ObjectAllocationInNewTLAB`
+- ✅ 1. Update `summarize-alloc.java` to accept `jdk.ObjectAllocationInNewTLAB`
          and `jdk.ObjectAllocationOutsideTLAB` (weight field: `allocationSize`)
          in addition to `jdk.ObjectAllocationSample` (weight field: `weight`).
          `summarize-cpu.java` needs no changes (Spike A confirmed compatible).
-- [ ] 2. Change the analyze skill recording discovery glob from `**/profile.jfr`
+- ✅ 2. Change the analyze skill recording discovery glob from `**/profile.jfr`
          to `**/*.jfr` (Spike B finding: async-profiler filenames differ).
-- [ ] 3. Update analyze skill to read `profiler` from experiments.json entry.
-- [ ] 4. Add `**Profiler:**` line to analysis.md header template.
-- [ ] 5. Inject safepoint-bias note into subagent prompt (direction depends on
+- ✅ 3. Update analyze skill to read `profiler` from experiments.json entry.
+- ✅ 4. Add `**Profiler:**` line to analysis.md header template.
+- ✅ 5. Inject safepoint-bias note into subagent prompt (direction depends on
          profiler: JFR → warn, async-profiler → clear).
-- [ ] 6. `git add` all changed files; commit.
+- ✅ 6. `git add` all changed files; commit.
 
 ---
 
