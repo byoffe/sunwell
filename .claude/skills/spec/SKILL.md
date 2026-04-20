@@ -13,6 +13,13 @@ idea to approved implementation plan, one artifact at a time.
 
 **During Requirements, Design, and Tasks phases: write spec files only — never implement. Compress and Close may write to code files and CLAUDE.md.**
 
+**Checkbox convention** (IntelliJ dark mode compatible):
+- `[ ]` — pending (standard empty checkbox; renders clearly in all themes)
+- `✅` (U+2705) — completed
+- `❌` (U+274C) — failed or explicitly blocked
+
+Task lists use per-commit numbering — restart at 1 under each commit section.
+
 ## Granularity Model
 
 The three artifacts operate at different granularities and have different
@@ -131,8 +138,8 @@ artificially limit scope to what fits in one design/tasks cycle.
  plain checkbox.>
 
 ### <Stage or Concern>
-- [ ] Given <precondition>, when <action>, then <observable result>
-- [ ] <Structural fact about the system>
+- Given <precondition>, when <action>, then <observable result>
+- <Structural fact about the system>
 
 ## Out of Scope
 <What this spec explicitly does not address — be specific.>
@@ -215,7 +222,7 @@ existing ones. Do not remove or renumber completed tasks.
 
 ## Commit 1 — <scope>
 
-- [x] 1. <Completed task>
+- ✅ 1. <Completed task>
 - [ ] 2. <Pending task>
 
 ## Commit 2 — <scope>
@@ -257,9 +264,9 @@ Wait for direction. Do not pick an answer silently.
 
 When all tasks for a commit are checked off in `tasks.md`, before committing:
 
-1. **Check off tasks in `tasks.md`** — all tasks for the commit should be `[x]`
-2. **Tick acceptance criteria in `requirements.md`** — for each criterion that is
-   now satisfied, change `[ ]` to `[x]`. Only tick criteria that are actually
+1. **Mark tasks done in `tasks.md`** — all tasks for the commit should be `✅`
+2. **Mark acceptance criteria in `requirements.md`** — for each criterion that is
+   now satisfied, add `✅` prefix. Only mark criteria that are actually
    met by working, committed code — not "close enough" or "mostly done".
 3. **Commit** — spec files and implementation files together in one commit so the
    state of the spec always matches the state of the code.

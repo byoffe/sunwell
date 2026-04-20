@@ -169,37 +169,37 @@ flag combinations. Confirm recordings land at the expected path structure.
 
 ### Spikes
 
-- [x] Spike A finding is documented in design.md: which JFR event type names
+- ✅ Spike A finding is documented in design.md: which JFR event type names
   async-profiler emits for cpu and alloc profiling, and whether existing
   summarize scripts are compatible as-is.
 
-- [x] Spike B finding is documented in design.md: confirmed working JMH flag
+- ✅ Spike B finding is documented in design.md: confirmed working JMH flag
   string and recording path structure, plus any caveats.
 
 ### Profiler Detection
 
-- [x] Given the target host has async-profiler installed, when any focus that
+- ✅ Given the target host has async-profiler installed, when any focus that
   prefers async-profiler is requested, then the skill uses async-profiler
   and reports "using async-profiler (available at <path>)".
 
-- [x] Given the target host does not have async-profiler, when a focus that
+- ✅ Given the target host does not have async-profiler, when a focus that
   prefers async-profiler is requested, then the skill falls back to JFR and
   reports "async-profiler not found on <target>; falling back to JFR".
 
-- [x] Given `baseline` or `gc` focus, when the profile skill runs, then it
+- ✅ Given `baseline` or `gc` focus, when the profile skill runs, then it
   uses JFR without probing for async-profiler.
 
-- [x] The detection probe is a single lightweight SSH check (e.g.,
+- ✅ The detection probe is a single lightweight SSH check (e.g.,
   `which async-profiler || ls /opt/async-profiler/lib/libasyncProfiler.so`);
   it does not attempt to install or deploy anything.
 
 ### async-profiler JMH Integration
 
-- [x] When async-profiler is used, the JMH profiler flag uses the confirmed
+- ✅ When async-profiler is used, the JMH profiler flag uses the confirmed
   syntax from Spike B, with the correct `event=` value per focus
   (`cpu → event=cpu`, `memory → event=alloc`) and `output=jfr`.
 
-- [x] The per-benchmark recording files land at the path structure confirmed
+- ✅ The per-benchmark recording files land at the path structure confirmed
   by Spike B — consistent with what collect-ssh.sh expects.
 
 - [ ] Given a completed async-profiler cpu run, when the analyze skill
@@ -234,19 +234,19 @@ flag combinations. Confirm recordings land at the expected path structure.
 
 ### Override
 
-- [x] `sunwell.yml` accepts an optional `profile.profiler-override` block
+- ✅ `sunwell.yml` accepts an optional `profile.profiler-override` block
   that maps focus names to profiler names (e.g., `cpu: jfr`).
 
-- [x] Given a `profiler-override` entry for a focus, when that focus is
+- ✅ Given a `profiler-override` entry for a focus, when that focus is
   profiled, then the overridden profiler is used and a note is logged:
   "profiler override: using <profiler> for focus <focus>".
 
-- [x] `sunwell.yml` for the toy-app includes a commented-out example of the
+- ✅ `sunwell.yml` for the toy-app includes a commented-out example of the
   override block.
 
 ### Docker Target
 
-- [x] The Docker image installs async-profiler during image build (not at
+- ✅ The Docker image installs async-profiler during image build (not at
   run time) at a well-known path (e.g., `/opt/async-profiler/`).
 
 - [ ] Given the toy-app container is running, when `--focus cpu` is profiled,
